@@ -2,7 +2,7 @@
 
 **OpenPosta-Page** is the frontend demo for the [OpenPosta](https://github.com/openjsw/openposta-worker) lightweight webmail system, powered by Cloudflare Workers and Resend. This frontend enables email login, inbox/sent views, and message sending using native JS + CSS — all easily deployable via Cloudflare Pages.
 
-👉 For Chinese users: [README-ZH.md](./README-ZH.md)
+👉 中文用户看这里: [README-ZH.md](./README-ZH.md)
 
 ---
 
