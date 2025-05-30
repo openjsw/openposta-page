@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>邮局管理后台</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Element Plus CDN -->
+  <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
+  <style>
+    body { background: #f8f8fa; }
+    #app { max-width: 700px; margin: 40px auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.06); padding: 36px 28px 28px 28px;}
+    .el-table { margin-top: 18px; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <template v-if="!loggedIn">
+      <h2 style="margin-bottom: 22px; text-align:center;">管理员登录</h2>
+      <el-form @submit.native.prevent="login" :model="loginForm" style="max-width: 320px; margin: auto;">
+        <el-form-item label="用户名">
+          <el-input v-model="loginForm.username" autocomplete="username"></el-input>
+        </el-form-item>
+        <el-form-item label="密码">
+          <el-input v-model="loginForm.password" type="password" autocomplete="current-password"></el-input>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" style="width:100%;" @click="login" :loading="loginLoading">登录</el-button>
+        </el-form-item>
+        <el-alert v-if="loginError" type="error" :closable="false" :title="loginError" />
+      </el-form>
+    </template>
+
+    <template v-else>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <h2>邮箱账户管理</h2>
+        <el-button type="default" size="small" @click="logout">退出登录</el-button>
+      </div>
+
+      <el-form :inline="true" @submit.native.prevent="addAccount" :model="addForm" style="margin-bottom:18px;">
+        <el-form-item label="邮箱">
+          <el-input v-model="addForm.email" placeholder="输入新邮箱"></el-input>
+        </el-form-item>
+        <el-form-item label="密码">
+          <el-input v-model="addForm.password" type="password" placeholder="密码"></el-input>
+        </el-form-item>
+        <el-form-item>
+          <el-checkbox v-model="addForm.can_send">允许发信</el-checkbox>
+        </el-form-item>
+        <el-form-item>
+          <el-checkbox v-model="addForm.can_receive">允许收信</el-checkbox>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="addAccount" :loading="addLoading">新增邮箱</el-button>
+        </el-form-item>
+      </el-form>
+
+      <el-table :data="accounts" v-loading="loading" border size="small" style="width:100%">
+        <el-table-column prop="email" label="邮箱" min-width="180"></el-table-column>
+        <el-table-column prop="can_send" label="允许发信" width="100">
+          <template #default="scope">
+            <el-switch v-model="scope.row.can_send" @change="toggleSend(scope.row)" :active-value="1" :inactive-value="0"></el-switch>
+          </template>
+        </el-table-column>
+        <el-table-column prop="can_receive" label="允许收信" width="100">
+          <template #default="scope">
+            <el-switch v-model="scope.row.can_receive" @change="toggleReceive(scope.row)" :active-value="1" :inactive-value="0"></el-switch>
+          </template>
+        </el-table-column>
+        <el-table-column label="创建时间" prop="created_at" min-width="140">
+          <template #default="scope">
+            {{ formatTime(scope.row.created_at) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="90">
+          <template #default="scope">
+            <el-popconfirm title="确定要删除此邮箱？" @confirm="deleteAccount(scope.row)">
+              <template #reference>
+                <el-button type="danger" size="small" plain>删除</el-button>
+              </template>
+            </el-popconfirm>
+          </template>
+        </el-table-column>
+      </el-table>
+    </template>
+  </div>
+
+  <script>
+  const API_BASE = "https://api-663395.jsw.quest"; // 后端 Worker API 域名
+
+  const { ElMessage } = ElementPlus;
+  const app = Vue.createApp({
+    data() {
+      return {
+        loginForm: { username: '', password: '' },
+        loginLoading: false,
+        loginError: '',
+        loggedIn: false,
+
+        addForm: { email: '', password: '', can_send: true, can_receive: true },
+        addLoading: false,
+        accounts: [],
+        loading: false,
+      }
+    },
+    methods: {
+      // 登录
+      async login() {
+        this.loginLoading = true;
+        this.loginError = '';
+        try {
+          let res = await fetch(`${API_BASE}/manage/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: "include",
+            body: JSON.stringify(this.loginForm)
+          });
+          let data = await res.json();
+          if (data.success) {
+            this.loggedIn = true;
+            this.loadAccounts();
+          } else {
+            this.loginError = data.error || '登录失败';
+          }
+        } catch (e) {
+          this.loginError = '登录请求异常';
+        }
+        this.loginLoading = false;
+      },
+      // 登出
+      async logout() {
+        await fetch(`${API_BASE}/manage/logout`, { method: 'POST', credentials: "include" });
+        this.loggedIn = false;
+      },
+      // 加载邮箱账户
+      async loadAccounts() {
+        this.loading = true;
+        let res = await fetch(`${API_BASE}/manage/list`, { credentials: "include" });
+        let data = await res.json();
+        if (Array.isArray(data.accounts)) {
+          this.accounts = data.accounts.map(acc => ({
+            ...acc,
+            can_send: Number(acc.can_send),
+            can_receive: Number(acc.can_receive),
+          }));
+        }
+        this.loading = false;
+      },
+      // 新增邮箱账户
+      async addAccount() {
+        if (!this.addForm.email || !this.addForm.password) {
+          ElMessage.error('请输入邮箱和密码');
+          return;
+        }
+        this.addLoading = true;
+        let res = await fetch(`${API_BASE}/manage/add`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: "include",
+          body: JSON.stringify(this.addForm)
+        });
+        let data = await res.json();
+        this.addLoading = false;
+        if (data.success) {
+          ElMessage.success('添加成功');
+          this.addForm.email = ''; this.addForm.password = '';
+          this.addForm.can_send = true; this.addForm.can_receive = true;
+          this.loadAccounts();
+        } else {
+          ElMessage.error(data.error || '添加失败');
+        }
+      },
+      // 删除邮箱
+      async deleteAccount(row) {
+        let res = await fetch(`${API_BASE}/manage/delete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: "include",
+          body: JSON.stringify({ email: row.email })
+        });
+        let data = await res.json();
+        if (data.success) {
+          ElMessage.success('已删除');
+          this.loadAccounts();
+        } else {
+          ElMessage.error(data.error || '删除失败');
+        }
+      },
+      // 切换收/发权限
+      async toggleSend(row) {
+        await fetch(`${API_BASE}/manage/update`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: "include",
+          body: JSON.stringify({ email: row.email, can_send: row.can_send, can_receive: row.can_receive })
+        });
+        this.loadAccounts();
+      },
+      async toggleReceive(row) {
+        await fetch(`${API_BASE}/manage/update`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: "include",
+          body: JSON.stringify({ email: row.email, can_send: row.can_send, can_receive: row.can_receive })
+        });
+        this.loadAccounts();
+      },
+      formatTime(str) {
+        if (!str) return '';
+        return new Date(str).toLocaleString();
+      },
+      // 检查登录状态
+      async checkLogin() {
+        try {
+          let res = await fetch(`${API_BASE}/manage/check`, { credentials: "include" });
+          let data = await res.json();
+          this.loggedIn = !!data.loggedIn;
+          if (this.loggedIn) this.loadAccounts();
+        } catch {
+          this.loggedIn = false;
+        }
+      }
+    },
+    mounted() {
+      this.checkLogin();
+    }
+  });
+  app.use(ElementPlus);
+  app.mount('#app');
+  </script>
+</body>
+</html>
