@@ -58,3 +58,4 @@ A: You must configure `RESEND_API_KEY` in the backend and enable send permission
 A: Currently, only administrators can reset it from the backend dashboard. Password recovery features may be added in future updates.
 
 ---
+2025 OpenJSW™/OpenPosta. Licensed under the MIT License.
