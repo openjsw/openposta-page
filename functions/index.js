@@ -52,6 +52,7 @@ export async function onRequest(context) {
     <meta property="og:title" content="${htmlEscape(i18n.title)}">
     <meta property="og:description" content="${htmlEscape(i18n.metaDesc)}">
   `.replace(/^\s+/gm, '');
+  const csp = `default-src 'self'; connect-src 'self' https://api-663395.openjsw.net; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';`;
 
   const langSwitcher = `
     <div style="position:absolute;top:10px;right:30px;font-size:14px;z-index:20;">
