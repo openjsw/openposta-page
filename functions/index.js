@@ -279,7 +279,6 @@ export async function onRequest(context) {
           let data = await res.json();
           if (data.success) {
             showMain('inbox');
-            loadInbox();
           } else {
             alert(data.error || I18N.loginFail);
           }
