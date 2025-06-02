@@ -37,13 +37,11 @@ export async function onRequest(context) {
   };
   const i18n = i18nDict[lang] || i18nDict['zh-CN'];
 
-  // HTML Escape
   function htmlEscape(str) {
     return String(str || '').replace(/[<>&"]/g, s =>
       ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[s]));
   }
 
-  // 配置
   const apiBase = env.API_BASE || '';
   const metaTags = `
     <meta charset="UTF-8">
@@ -139,21 +137,18 @@ export async function onRequest(context) {
       <button class="logout-btn" id="logoutBtn" style="margin-top:30px;">${htmlEscape(i18n.logout)}</button>
     </div>
     <div class="content">
-      <!-- 收件箱 -->
       <div id="inboxBox">
         <div class="header-bar"><h2>${htmlEscape(i18n.inbox)}</h2></div>
         <div class="mail-list" id="inboxList"></div>
         <div class="empty" id="inboxEmpty" style="display:none;">${htmlEscape(i18n.noMail)}</div>
         <div class="detail-box" id="inboxDetail" style="display:none;"></div>
       </div>
-      <!-- 发件箱 -->
       <div id="sentBox" style="display:none;">
         <div class="header-bar"><h2>${htmlEscape(i18n.sent)}</h2></div>
         <div class="mail-list" id="sentList"></div>
         <div class="empty" id="sentEmpty" style="display:none;">${htmlEscape(i18n.noSent)}</div>
         <div class="detail-box" id="sentDetail" style="display:none;"></div>
       </div>
-      <!-- 写信 -->
       <div id="composeBox" style="display:none;">
         <div class="header-bar"><h2>${htmlEscape(i18n.compose)}</h2></div>
         <form class="compose-form" id="composeForm">
@@ -197,226 +192,222 @@ export async function onRequest(context) {
 
     // ========= 多语言UI初始化 =========
     function initI18nUI() {
-      // 登录表单
       document.querySelector('#loginForm h2').textContent = I18N.login;
       document.querySelector('#loginForm label[for="email"], #loginForm .input-row label:nth-of-type(1)').textContent = I18N.email;
       document.querySelector('#loginForm label[for="password"], #loginForm .input-row label:nth-of-type(2)').textContent = I18N.password;
       document.querySelector('#loginForm button').textContent = I18N.loginBtn;
-      // 菜单
       document.getElementById('menu-inbox').textContent = I18N.inbox;
       document.getElementById('menu-sent').textContent = I18N.sent;
       document.getElementById('menu-compose').textContent = I18N.compose;
       document.getElementById('logoutBtn').textContent = I18N.logout;
-      // 标题
       document.querySelector('#inboxBox .header-bar h2').textContent = I18N.inbox;
       document.querySelector('#sentBox .header-bar h2').textContent = I18N.sent;
       document.querySelector('#composeBox .header-bar h2').textContent = I18N.compose;
-      // 占位/空内容
       document.getElementById('inboxEmpty').textContent = I18N.noMail;
       document.getElementById('sentEmpty').textContent = I18N.noSent;
-      // 写信
       document.querySelector('#composeForm label[for="to"], #composeForm label:nth-of-type(1)').textContent = I18N.to;
       document.querySelector('#composeForm label[for="subject"], #composeForm label:nth-of-type(2)').textContent = I18N.subject;
       document.querySelector('#composeForm label[for="body"], #composeForm label:nth-of-type(3)').textContent = I18N.content;
       document.querySelector('#composeForm button').textContent = I18N.send;
     }
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initI18nUI);
-    } else {
+
+    document.addEventListener('DOMContentLoaded', function() {
+      // 多语言UI初始化
       initI18nUI();
-    }
 
-    // ========== UI切换 ==========
-    function showLogin() {
-      document.getElementById('loginForm').style.display = '';
-      document.getElementById('mainLayout').style.display = 'none';
-    }
-    function showMain(menu) {
-      document.getElementById('loginForm').style.display = 'none';
-      document.getElementById('mainLayout').style.display = '';
-      showBox(menu || 'inbox');
-    }
-    function showBox(menu) {
-      setActiveMenu(menu);
-      document.getElementById('inboxBox').style.display = menu === 'inbox' ? '' : 'none';
-      document.getElementById('sentBox').style.display = menu === 'sent' ? '' : 'none';
-      document.getElementById('composeBox').style.display = menu === 'compose' ? '' : 'none';
-      setStatus('');
-      if (menu === 'inbox') loadInbox();
-      if (menu === 'sent') loadSent();
-      if (menu === 'compose') {
-        document.getElementById('composeForm').reset();
+      // ========== UI切换 ==========
+      function showLogin() {
+        document.getElementById('loginForm').style.display = '';
+        document.getElementById('mainLayout').style.display = 'none';
       }
-    }
-
-    // ========== 登录状态检测 ==========
-    async function checkLogin() {
-      let res = await fetch(API_BASE + '/user/check', { credentials: 'include' });
-      let data = await res.json();
-      if (data.loggedIn) {
-        showMain('inbox');
-      } else {
-        showLogin();
+      function showMain(menu) {
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('mainLayout').style.display = '';
+        showBox(menu || 'inbox');
       }
-    }
+      function showBox(menu) {
+        setActiveMenu(menu);
+        document.getElementById('inboxBox').style.display = menu === 'inbox' ? '' : 'none';
+        document.getElementById('sentBox').style.display = menu === 'sent' ? '' : 'none';
+        document.getElementById('composeBox').style.display = menu === 'compose' ? '' : 'none';
+        setStatus('');
+        if (menu === 'inbox') loadInbox();
+        if (menu === 'sent') loadSent();
+        if (menu === 'compose') {
+          document.getElementById('composeForm').reset();
+        }
+      }
 
-    // ========== 登录事件 ==========
-    document.getElementById('loginForm').onsubmit = async function(e){
-      e.preventDefault();
-      const email = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value;
-      const btn = this.querySelector('button');
-      btn.disabled = true;
-      btn.innerText = I18N.loginPending;
-      try {
-        let res = await fetch(API_BASE + '/user/login', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          credentials: 'include',
-          body: JSON.stringify({ email, password })
-        });
+      // ========== 登录状态检测 ==========
+      async function checkLogin() {
+        let res = await fetch(API_BASE + '/user/check', { credentials: 'include' });
         let data = await res.json();
-        if (data.success) {
+        if (data.loggedIn) {
           showMain('inbox');
-          loadInbox();
         } else {
-          alert(data.error || I18N.loginFail);
+          showLogin();
         }
-      } catch {
-        alert(I18N.netError);
       }
-      btn.disabled = false;
-      btn.innerText = I18N.loginBtn;
-    };
-    // ========== 登出事件 ==========
-    document.getElementById('logoutBtn').onclick = async function(){
-      await fetch(API_BASE + '/user/logout', { method:'POST', credentials:'include' });
-      showLogin();
-    };
 
-    // ========== 邮件加载 ==========
-    // 收件箱
-    async function loadInbox() {
-      const mailList = document.getElementById('inboxList');
-      mailList.innerHTML = '';
-      document.getElementById('inboxDetail').style.display = 'none';
-      document.getElementById('inboxEmpty').style.display = 'none';
-      try {
-        let res = await fetch(API_BASE + '/user/inbox', { credentials: 'include' });
-        let data = await res.json();
-        if (data.mails && data.mails.length) {
-          for (const m of data.mails) {
-            let item = document.createElement('div');
-            item.className = 'mail-item';
-            item.innerHTML = \`<span class="subject">\${escapeHtml(m.subject || I18N.noSubject)}</span>
-                              <span class="from">\${escapeHtml(m.mail_from)}</span>
-                              <span class="date">\${formatTime(m.created_at)}</span>\`;
-            item.onclick = ()=>showInboxDetail(m.id);
-            mailList.appendChild(item);
+      // ========== 登录事件 ==========
+      document.getElementById('loginForm').onsubmit = async function(e){
+        e.preventDefault();
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        const btn = this.querySelector('button');
+        btn.disabled = true;
+        btn.innerText = I18N.loginPending;
+        try {
+          let res = await fetch(API_BASE + '/user/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'include',
+            body: JSON.stringify({ email, password })
+          });
+          let data = await res.json();
+          if (data.success) {
+            showMain('inbox');
+            loadInbox();
+          } else {
+            alert(data.error || I18N.loginFail);
           }
-        } else {
-          document.getElementById('inboxEmpty').style.display = '';
+        } catch {
+          alert(I18N.netError);
         }
-      } catch {
-        mailList.innerHTML = \`<div class="empty">\${I18N.loadFail}</div>\`;
-      }
-    }
-    async function showInboxDetail(id) {
-      let box = document.getElementById('inboxDetail');
-      box.innerHTML = I18N.loading;
-      box.style.display = '';
-      let res = await fetch(API_BASE + \`/user/mail?id=\${encodeURIComponent(id)}\`, { credentials: 'include' });
-      let data = await res.json();
-      if (!data.mail) {
-        box.innerHTML = I18N.notFound;
-        return;
-      }
-      box.innerHTML = \`<div style="font-weight:600;">\${I18N.subject}：\${escapeHtml(data.mail.subject||I18N.noSubject)}</div>
-                       <div>\${I18N.from}：\${escapeHtml(data.mail.mail_from)}</div>
-                       <div>\${I18N.time}：\${formatTime(data.mail.created_at)}</div>
-                       <hr>
-                       <div style="white-space:pre-wrap;">\${escapeHtml(data.mail.body||I18N.noContent)}</div>\`;
-    }
-    // 发件箱
-    async function loadSent() {
-      const mailList = document.getElementById('sentList');
-      mailList.innerHTML = '';
-      document.getElementById('sentDetail').style.display = 'none';
-      document.getElementById('sentEmpty').style.display = 'none';
-      try {
-        let res = await fetch(API_BASE + '/user/sent', { credentials: 'include' });
-        let data = await res.json();
-        if (data.mails && data.mails.length) {
-          for (const m of data.mails) {
-            let item = document.createElement('div');
-            item.className = 'mail-item';
-            item.innerHTML = \`<span class="subject">\${escapeHtml(m.subject || I18N.noSubject)}</span>
-                              <span class="to">\${escapeHtml(m.mail_to)}</span>
-                              <span class="date">\${formatTime(m.created_at)}</span>\`;
-            item.onclick = ()=>showSentDetail(m.id);
-            mailList.appendChild(item);
+        btn.disabled = false;
+        btn.innerText = I18N.loginBtn;
+      };
+
+      // ========== 登出事件 ==========
+      document.getElementById('logoutBtn').onclick = async function(){
+        await fetch(API_BASE + '/user/logout', { method:'POST', credentials:'include' });
+        showLogin();
+      };
+
+      // ========== 邮件加载 ==========
+      // 收件箱
+      async function loadInbox() {
+        const mailList = document.getElementById('inboxList');
+        mailList.innerHTML = '';
+        document.getElementById('inboxDetail').style.display = 'none';
+        document.getElementById('inboxEmpty').style.display = 'none';
+        try {
+          let res = await fetch(API_BASE + '/user/inbox', { credentials: 'include' });
+          let data = await res.json();
+          if (data.mails && data.mails.length) {
+            for (const m of data.mails) {
+              let item = document.createElement('div');
+              item.className = 'mail-item';
+              item.innerHTML = \`<span class="subject">\${escapeHtml(m.subject || I18N.noSubject)}</span>
+                                <span class="from">\${escapeHtml(m.mail_from)}</span>
+                                <span class="date">\${formatTime(m.created_at)}</span>\`;
+              item.onclick = ()=>showInboxDetail(m.id);
+              mailList.appendChild(item);
+            }
+          } else {
+            document.getElementById('inboxEmpty').style.display = '';
           }
-        } else {
-          document.getElementById('sentEmpty').style.display = '';
+        } catch {
+          mailList.innerHTML = \`<div class="empty">\${I18N.loadFail}</div>\`;
         }
-      } catch {
-        mailList.innerHTML = \`<div class="empty">\${I18N.loadFail}</div>\`;
       }
-    }
-    async function showSentDetail(id) {
-      let box = document.getElementById('sentDetail');
-      box.innerHTML = I18N.loading;
-      box.style.display = '';
-      let res = await fetch(API_BASE + \`/user/sentmail?id=\${encodeURIComponent(id)}\`, { credentials: 'include' });
-      let data = await res.json();
-      if (!data.mail) {
-        box.innerHTML = I18N.notFound;
-        return;
-      }
-      box.innerHTML = \`<div style="font-weight:600;">\${I18N.subject}：\${escapeHtml(data.mail.subject||I18N.noSubject)}</div>
-                       <div>\${I18N.to}：\${escapeHtml(data.mail.mail_to)}</div>
-                       <div>\${I18N.time}：\${formatTime(data.mail.created_at)}</div>
-                       <hr>
-                       <div style="white-space:pre-wrap;">\${escapeHtml(data.mail.body||I18N.noContent)}</div>\`;
-    }
-
-    // ========== 写信 ==========
-    document.getElementById('composeForm').onsubmit = async function(e){
-      e.preventDefault();
-      const to = document.getElementById('to').value.trim();
-      const subject = document.getElementById('subject').value.trim();
-      const body = document.getElementById('body').value.trim();
-      const btn = this.querySelector('button');
-      setStatus(I18N.sending, '#888');
-      btn.disabled = true;
-      try {
-        let res = await fetch(API_BASE + '/user/send', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          credentials: 'include',
-          body: JSON.stringify({ to, subject, body })
-        });
+      async function showInboxDetail(id) {
+        let box = document.getElementById('inboxDetail');
+        box.innerHTML = I18N.loading;
+        box.style.display = '';
+        let res = await fetch(API_BASE + \`/user/mail?id=\${encodeURIComponent(id)}\`, { credentials: 'include' });
         let data = await res.json();
-        if (data.success) {
-          setStatus(I18N.sentSuccess);
-          this.reset();
-        } else {
-          setStatus(data.error || I18N.sentFail, '#e55');
+        if (!data.mail) {
+          box.innerHTML = I18N.notFound;
+          return;
         }
-      } catch {
-        setStatus(I18N.sentFail, '#e55');
+        box.innerHTML = \`<div style="font-weight:600;">\${I18N.subject}：\${escapeHtml(data.mail.subject||I18N.noSubject)}</div>
+                         <div>\${I18N.from}：\${escapeHtml(data.mail.mail_from)}</div>
+                         <div>\${I18N.time}：\${formatTime(data.mail.created_at)}</div>
+                         <hr>
+                         <div style="white-space:pre-wrap;">\${escapeHtml(data.mail.body||I18N.noContent)}</div>\`;
       }
-      btn.disabled = false;
-      btn.textContent = I18N.send;
-    };
+      // 发件箱
+      async function loadSent() {
+        const mailList = document.getElementById('sentList');
+        mailList.innerHTML = '';
+        document.getElementById('sentDetail').style.display = 'none';
+        document.getElementById('sentEmpty').style.display = 'none';
+        try {
+          let res = await fetch(API_BASE + '/user/sent', { credentials: 'include' });
+          let data = await res.json();
+          if (data.mails && data.mails.length) {
+            for (const m of data.mails) {
+              let item = document.createElement('div');
+              item.className = 'mail-item';
+              item.innerHTML = \`<span class="subject">\${escapeHtml(m.subject || I18N.noSubject)}</span>
+                                <span class="to">\${escapeHtml(m.mail_to)}</span>
+                                <span class="date">\${formatTime(m.created_at)}</span>\`;
+              item.onclick = ()=>showSentDetail(m.id);
+              mailList.appendChild(item);
+            }
+          } else {
+            document.getElementById('sentEmpty').style.display = '';
+          }
+        } catch {
+          mailList.innerHTML = \`<div class="empty">\${I18N.loadFail}</div>\`;
+        }
+      }
+      async function showSentDetail(id) {
+        let box = document.getElementById('sentDetail');
+        box.innerHTML = I18N.loading;
+        box.style.display = '';
+        let res = await fetch(API_BASE + \`/user/sentmail?id=\${encodeURIComponent(id)}\`, { credentials: 'include' });
+        let data = await res.json();
+        if (!data.mail) {
+          box.innerHTML = I18N.notFound;
+          return;
+        }
+        box.innerHTML = \`<div style="font-weight:600;">\${I18N.subject}：\${escapeHtml(data.mail.subject||I18N.noSubject)}</div>
+                         <div>\${I18N.to}：\${escapeHtml(data.mail.mail_to)}</div>
+                         <div>\${I18N.time}：\${formatTime(data.mail.created_at)}</div>
+                         <hr>
+                         <div style="white-space:pre-wrap;">\${escapeHtml(data.mail.body||I18N.noContent)}</div>\`;
+      }
 
-    // ========== 菜单切换 ==========
-    document.getElementById('menu-inbox').onclick = () => showBox('inbox');
-    document.getElementById('menu-sent').onclick = () => showBox('sent');
-    document.getElementById('menu-compose').onclick = () => showBox('compose');
+      // ========== 写信 ==========
+      document.getElementById('composeForm').onsubmit = async function(e){
+        e.preventDefault();
+        const to = document.getElementById('to').value.trim();
+        const subject = document.getElementById('subject').value.trim();
+        const body = document.getElementById('body').value.trim();
+        const btn = this.querySelector('button');
+        setStatus(I18N.sending, '#888');
+        btn.disabled = true;
+        try {
+          let res = await fetch(API_BASE + '/user/send', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'include',
+            body: JSON.stringify({ to, subject, body })
+          });
+          let data = await res.json();
+          if (data.success) {
+            setStatus(I18N.sentSuccess);
+            this.reset();
+          } else {
+            setStatus(data.error || I18N.sentFail, '#e55');
+          }
+        } catch {
+          setStatus(I18N.sentFail, '#e55');
+        }
+        btn.disabled = false;
+        btn.textContent = I18N.send;
+      };
 
-    // ========== 初始化 ==========
-    checkLogin();
+      // ========== 菜单切换 ==========
+      document.getElementById('menu-inbox').onclick = () => showBox('inbox');
+      document.getElementById('menu-sent').onclick = () => showBox('sent');
+      document.getElementById('menu-compose').onclick = () => showBox('compose');
+
+      // ========== 初始化 ==========
+      checkLogin();
+    });
   </script>
 </body>
 </html>
