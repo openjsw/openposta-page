@@ -52,7 +52,6 @@ export async function onRequest(context) {
     <meta property="og:title" content="${htmlEscape(i18n.title)}">
     <meta property="og:description" content="${htmlEscape(i18n.metaDesc)}">
   `.replace(/^\s+/gm, '');
-  const csp = `default-src 'self'; connect-src 'self' https://api-663395.openjsw.net; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';`;
 
   const langSwitcher = `
     <div style="position:absolute;top:10px;right:30px;font-size:14px;z-index:20;">
@@ -106,12 +105,7 @@ export async function onRequest(context) {
     .compose-form textarea { min-height: 80px; resize: vertical;}
     .compose-form button { margin-top: 17px; padding: 7px 28px; background: #4285f4; color: #fff; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; }
     .compose-form button:disabled { background: #aaa; }
-    #loginForm { max-width: 300px; margin: 80px auto; padding: 38px 25px; background: #fff; border-radius: 10px; box-shadow: 0 2px 16px #0001; }
-    #loginForm .input-row { margin-bottom: 18px; }
-    #loginForm label { display: block; margin-bottom: 4px;}
-    #loginForm input { width: 100%; padding: 8px 12px; font-size: 15px; border: 1px solid #ddd; border-radius: 5px; }
-    #loginForm button { padding: 7px 24px; border: none; background: #4285f4; color: #fff; border-radius: 5px; font-size: 16px; cursor: pointer; width: 100%; }
-    #loginForm button:disabled { background: #ccc; }
+    #loginForm { max-width: 340px; margin: 80px auto; padding: 38px 32px 32px 32px; /* 左右留白更大，底部略窄一点 */ background: #fff; border-radius: 12px; box-shadow: 0 2px 16px #0001; border: 1px solid #f0f0f5; } #loginForm .input-row { margin-bottom: 20px; } #loginForm label { display: block; margin-bottom: 5px; font-size: 15px; color: #222; font-weight: 500; } #loginForm input { width: 100%; padding: 10px 13px; font-size: 15px; border: 1.2px solid #e1e1ea; border-radius: 6px; box-sizing: border-box; background: #fafbfe; margin-top: 4px; transition: border 0.2s; } #loginForm input:focus { border: 1.5px solid #4285f4; outline: none; background: #fff; } #loginForm button { padding: 10px 24px; border: none; background: #4285f4; color: #fff; border-radius: 7px; font-size: 17px; font-weight: 500; cursor: pointer; width: 100%; margin-top: 6px; box-shadow: 0 1px 6px #4285f41a; transition: background 0.2s; } #loginForm button:disabled { background: #b7cef7; }
   </style>
 </head>
 <body>
