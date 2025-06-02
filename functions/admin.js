@@ -2,66 +2,32 @@ export async function onRequest(context) {
   const env = context.env || {};
   const url = new URL(context.request.url);
 
-  // 多语言判断
+  // 多语言
   let lang = url.searchParams.get('lang')
     || (context.request.headers.get('accept-language')?.split(',')[0] || '').toLowerCase()
     || (env.DEFAULT_LANG || 'zh-CN');
   lang = lang.startsWith('en') ? 'en' : 'zh-CN';
-
-  // 多语言字典
   const i18nDict = {
     'zh-CN': {
-      title: '邮局管理后台',
-      adminLogin: '管理员登录',
-      username: '用户名',
-      password: '密码',
-      login: '登录',
-      logout: '退出登录',
-      loginError: '登录失败',
-      accounts: '邮箱账户管理',
-      email: '邮箱',
-      pwd: '密码',
-      add: '新增邮箱',
-      addSuccess: '添加成功',
-      addFail: '添加失败',
-      delete: '删除',
-      deleteConfirm: '确定要删除此邮箱？',
-      deleted: '已删除',
-      allowSend: '允许发信',
-      allowRecv: '允许收信',
-      op: '操作',
-      created: '创建时间',
-      loading: '加载中...',
-      inputEmailPwd: '请输入邮箱和密码',
-      yes: '是', no: '否'
+      title: '邮局管理后台', adminLogin: '管理员登录', username: '用户名', password: '密码', login: '登录',
+      logout: '退出登录', loginError: '登录失败', accounts: '邮箱账户管理', email: '邮箱前缀', domain: '邮箱后缀',
+      pwd: '密码', add: '新增邮箱', addSuccess: '添加成功', addFail: '添加失败', delete: '删除', 
+      deleteConfirm: '确定要删除此邮箱？', deleted: '已删除', allowSend: '允许发信', allowRecv: '允许收信',
+      op: '操作', created: '创建时间', loading: '加载中...', inputEmailPwd: '请输入邮箱和密码', yes: '是', no: '否'
     },
     'en': {
-      title: 'Mail Admin Panel',
-      adminLogin: 'Admin Login',
-      username: 'Username',
-      password: 'Password',
-      login: 'Login',
-      logout: 'Logout',
-      loginError: 'Login failed',
-      accounts: 'Mail Account Management',
-      email: 'Email',
-      pwd: 'Password',
-      add: 'Add Email',
-      addSuccess: 'Added',
-      addFail: 'Add failed',
-      delete: 'Delete',
-      deleteConfirm: 'Are you sure to delete?',
-      deleted: 'Deleted',
-      allowSend: 'Can Send',
-      allowRecv: 'Can Receive',
-      op: 'Action',
-      created: 'Created',
-      loading: 'Loading...',
-      inputEmailPwd: 'Enter email and password',
-      yes: 'Yes', no: 'No'
+      title: 'Mail Admin Panel', adminLogin: 'Admin Login', username: 'Username', password: 'Password', login: 'Login',
+      logout: 'Logout', loginError: 'Login failed', accounts: 'Mail Account Management', email: 'Prefix', domain: 'Domain',
+      pwd: 'Password', add: 'Add Email', addSuccess: 'Added', addFail: 'Add failed', delete: 'Delete',
+      deleteConfirm: 'Are you sure to delete?', deleted: 'Deleted', allowSend: 'Can Send', allowRecv: 'Can Receive',
+      op: 'Action', created: 'Created', loading: 'Loading...', inputEmailPwd: 'Enter email and password', yes: 'Yes', no: 'No'
     }
   };
   const t = i18nDict[lang];
+
+  // 邮箱域名支持（多个英文逗号分隔，trim去空）
+  const domains = String(env.emaildomain || 'openjsw.net').split(',').map(s=>s.trim()).filter(Boolean);
+  const defaultDomain = domains[0] || 'openjsw.net';
 
   // 后端API
   const API_BASE = env.API_BASE || 'https://api-663395.openjsw.net';
@@ -74,7 +40,6 @@ export async function onRequest(context) {
     </div>
   `;
 
-  // 页面内容
   const html = `<!DOCTYPE html>
 <html lang="${lang}">
 <head>
@@ -84,31 +49,34 @@ export async function onRequest(context) {
   <style>
     body { background: #f8f8fa; margin:0; font-family: system-ui,sans-serif; }
     #app { max-width: 700px; margin: 46px auto 0 auto; background: #fff;
-      border-radius: 12px; box-shadow: 0 4px 18px #0002; padding: 36px 26px 28px 26px;}
-    h2 { margin: 0 0 22px 0; text-align:center; font-size:1.7em;}
-    .form { max-width:320px; margin: 0 auto 0 auto; }
+      border-radius: 14px; box-shadow: 0 4px 18px #0002; padding: 38px 36px 34px 36px;}
+    h2 { margin: 0 0 22px 0; text-align:left; font-size:1.8em;}
+    .form { max-width:100%; margin: 0 auto 0 auto; }
     .form-group { margin-bottom: 18px; }
-    .form-label { display:block; margin-bottom:6px; font-weight:500;}
-    .form-input { width:100%; padding:9px 10px; border:1px solid #dadada; border-radius:6px;
-      font-size: 16px; margin-bottom:2px; box-sizing: border-box;}
-    .form-btn { width:100%; padding: 10px 0; border:none; background:#3577d4; color:#fff;
-      font-size:17px; border-radius:6px; cursor:pointer; transition:0.18s; }
+    .form-label { display:block; margin-bottom:7px; font-weight:500;}
+    .form-row { display:flex; gap:16px;}
+    .form-input, .form-select { padding:11px 13px; border:1px solid #dadada; border-radius:7px;
+      font-size: 17px; box-sizing: border-box; flex:1; min-width:0;}
+    .form-input[type="text"], .form-input[type="password"] { min-width:120px;}
+    .form-select { flex:0 0 130px; max-width:130px; }
+    .form-btn { width:100%; padding: 12px 0; border:none; background:#3577d4; color:#fff;
+      font-size:17px; border-radius:7px; cursor:pointer; transition:0.18s; }
     .form-btn:disabled { background:#b8c4d2; cursor:not-allowed;}
     .error-msg { background:#fff4f4; color:#d43a3a; padding:8px 12px; border-radius:6px;
       margin-bottom:14px; text-align:center;}
     .table-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px;}
-    .btn { padding: 6px 16px; background: #f6f7f8; color:#333; border-radius: 6px;
+    .btn { padding: 7px 20px; background: #f6f7f8; color:#333; border-radius: 7px;
       border:1px solid #e4e8ec; cursor:pointer; font-size:15px;}
     .btn[disabled] { background: #ececec; color: #bbb; cursor:not-allowed;}
     .table { border-collapse:collapse; width:100%; margin-top:18px;}
-    .table th, .table td { border:1px solid #ececec; padding: 8px 7px; text-align:center;}
+    .table th, .table td { border:1px solid #ececec; padding: 10px 9px; text-align:center;}
     .table th { background: #f5f7fa; font-weight:500;}
-    .switch { position:relative; display:inline-block; width:34px; height:20px; vertical-align:middle;}
+    .switch { position:relative; display:inline-block; width:36px; height:22px; vertical-align:middle;}
     .switch input { opacity:0; width:0; height:0;}
     .slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0;
       background:#ccc; border-radius:18px; transition:.2s;}
     .switch input:checked + .slider { background:#4285f4;}
-    .slider:before { position:absolute; content:""; height:14px; width:14px; left:3px; bottom:3px;
+    .slider:before { position:absolute; content:""; height:16px; width:16px; left:3px; bottom:3px;
       background:#fff; border-radius:50%; transition:.2s;}
     .switch input:checked + .slider:before { transform:translateX(14px);}
     .danger { color:#e14; background: #fff7f7; border-color:#f7d3d3;}
@@ -116,6 +84,7 @@ export async function onRequest(context) {
     @media (max-width:600px) {
       #app { padding:18px 2vw 10vw 2vw;}
       .table th,.table td { font-size:13px; }
+      .form-row { flex-direction:column; gap:7px;}
     }
   </style>
 </head>
@@ -123,11 +92,11 @@ export async function onRequest(context) {
   ${langSwitcher}
   <div id="app"></div>
   <script>
-  // --- 多语言
   const t = ${JSON.stringify(t)};
   const API_BASE = ${JSON.stringify(API_BASE)};
+  const domains = ${JSON.stringify(domains)};
+  const defaultDomain = ${JSON.stringify(defaultDomain)};
 
-  // 工具函数
   function formatTime(str) {
     if (!str) return '';
     let d = new Date(str);
@@ -138,24 +107,16 @@ export async function onRequest(context) {
     return String(str||'').replace(/[<>&"]/g, s=>({'<':'&lt;','>':'&gt;','&':'&amp;'})[s]);
   }
 
-  // 渲染方法
+  // 状态
   const app = document.getElementById('app');
   let state = {
     loginForm: { username: '', password: '' },
-    loginError: '',
-    loginLoading: false,
-    loggedIn: false,
-
-    addForm: { email: '', password: '', can_send: true, can_receive: true },
-    addLoading: false,
-    accounts: [],
-    loading: false,
+    loginError: '', loginLoading: false, loggedIn: false,
+    addForm: { email_prefix: '', domain: defaultDomain, password: '', can_send: true, can_receive: true },
+    addLoading: false, accounts: [], loading: false,
   };
 
-  function setState(obj) {
-    Object.assign(state, obj);
-    render();
-  }
+  function setState(obj) { Object.assign(state, obj); render(); }
 
   async function login() {
     setState({loginLoading:true, loginError:''});
@@ -177,49 +138,49 @@ export async function onRequest(context) {
       setState({loginError:t.loginError, loginLoading:false});
     }
   }
-
   async function logout() {
     await fetch(API_BASE+'/manage/logout', {method:'POST', credentials:'include'});
     setState({loggedIn:false});
   }
-
   async function loadAccounts() {
     setState({loading:true});
     let res = await fetch(API_BASE+'/manage/list', {credentials:'include'});
     let data = await res.json();
     if (Array.isArray(data.accounts)) {
       setState({accounts: data.accounts.map(acc => ({
-        ...acc,
-        can_send: Number(acc.can_send), can_receive: Number(acc.can_receive),
+        ...acc, can_send: Number(acc.can_send), can_receive: Number(acc.can_receive),
       })), loading:false});
     } else {
       setState({accounts:[], loading:false});
     }
   }
-
   async function addAccount() {
-    if (!state.addForm.email || !state.addForm.password) {
-      alert(t.inputEmailPwd);
-      return;
+    if (!state.addForm.email_prefix || !state.addForm.password) {
+      alert(t.inputEmailPwd); return;
     }
     setState({addLoading:true});
+    let payload = {
+      email: state.addForm.email_prefix + '@' + state.addForm.domain,
+      password: state.addForm.password,
+      can_send: state.addForm.can_send,
+      can_receive: state.addForm.can_receive
+    };
     let res = await fetch(API_BASE+'/manage/add', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       credentials:'include',
-      body: JSON.stringify(state.addForm)
+      body: JSON.stringify(payload)
     });
     let data = await res.json();
     setState({addLoading:false});
     if (data.success) {
       alert(t.addSuccess);
-      setState({addForm:{email:'',password:'',can_send:true,can_receive:true}});
+      setState({addForm:{email_prefix:'',domain:defaultDomain,password:'',can_send:true,can_receive:true}});
       loadAccounts();
     } else {
       alert(data.error || t.addFail);
     }
   }
-
   async function deleteAccount(email) {
     if (!confirm(t.deleteConfirm)) return;
     let res = await fetch(API_BASE+'/manage/delete', {
@@ -236,7 +197,6 @@ export async function onRequest(context) {
       alert(data.error || t.addFail);
     }
   }
-
   async function updateAccount(row) {
     await fetch(API_BASE+'/manage/update', {
       method:'POST',
@@ -250,7 +210,6 @@ export async function onRequest(context) {
     });
     loadAccounts();
   }
-
   async function checkLogin() {
     try {
       let res = await fetch(API_BASE+'/manage/check', {credentials:'include'});
@@ -261,6 +220,20 @@ export async function onRequest(context) {
       setState({loggedIn:false});
     }
   }
+
+  // --- Switch事件
+  window.onToggleSend = function (el) {
+    const idx = Number(el.dataset.index);
+    const acc = state.accounts[idx];
+    acc.can_send = el.checked ? 1 : 0;
+    updateAccount(acc);
+  };
+  window.onToggleRecv = function (el) {
+    const idx = Number(el.dataset.index);
+    const acc = state.accounts[idx];
+    acc.can_receive = el.checked ? 1 : 0;
+    updateAccount(acc);
+  };
 
   function render() {
     if (!state.loggedIn) {
@@ -292,34 +265,41 @@ export async function onRequest(context) {
     } else {
       app.innerHTML = \`
         <div class="table-bar">
-          <h2 style="text-align:left;margin:0;">\${t.accounts}</h2>
+          <h2>\${t.accounts}</h2>
           <button class="btn" onclick="logout()">\${t.logout}</button>
         </div>
         <form class="form" style="margin-bottom:18px;" onsubmit="return false;">
-          <div class="form-group" style="display:inline-block;width:38%;">
-            <label class="form-label">\${t.email}</label>
-            <input class="form-input" type="email" value="\${escapeHtml(state.addForm.email)}"
-              placeholder="\${t.email}" oninput="state.addForm.email=this.value">
+          <div class="form-row">
+            <div style="flex:2;">
+              <label class="form-label">\${t.email}</label>
+              <input class="form-input" type="text" style="width:100%;" value="\${escapeHtml(state.addForm.email_prefix||'')}"
+                placeholder="\${t.email}" oninput="state.addForm.email_prefix=this.value">
+            </div>
+            <div style="flex:1;">
+              <label class="form-label">\${t.domain}</label>
+              <select class="form-select" id="domainSel">
+                \${domains.map(d=>\`<option value="\${d}"\${d===state.addForm.domain?' selected':''}>@\${d}</option>\`).join('')}
+              </select>
+            </div>
+            <div style="flex:2;">
+              <label class="form-label">\${t.pwd}</label>
+              <input class="form-input" type="password" style="width:100%;" value="\${escapeHtml(state.addForm.password||'')}"
+                placeholder="\${t.pwd}" oninput="state.addForm.password=this.value">
+            </div>
+            <div style="flex:1;align-self:end;">
+              <button class="form-btn" type="submit" id="addBtn" \${state.addLoading?'disabled':''}>
+                \${state.addLoading?t.loading:t.add}
+              </button>
+            </div>
           </div>
-          <div class="form-group" style="display:inline-block;width:36%;margin-left:4%;">
-            <label class="form-label">\${t.pwd}</label>
-            <input class="form-input" type="password" value="\${escapeHtml(state.addForm.password)}"
-              placeholder="\${t.pwd}" oninput="state.addForm.password=this.value">
-          </div>
-          <div class="form-group" style="display:inline-block;width:18%;vertical-align:bottom;">
-            <label class="form-label" style="font-size:13px;">&nbsp;</label>
-            <button class="form-btn" type="submit" style="padding:9px 0;font-size:15px;" id="addBtn" \${state.addLoading?'disabled':''}>
-              \${state.addLoading?t.loading:t.add}
-            </button>
-          </div>
-          <div class="form-group" style="display:inline-block;width:100%;margin-top:6px;">
-            <label style="font-size:13px;margin-right:10px;">
-              <input type="checkbox" id="sendChk" \${state.addForm.can_send?'checked':''} 
-                onchange="state.addForm.can_send=this.checked"> \${t.allowSend}
+          <div style="margin-top:10px;">
+            <label style="font-size:13px;margin-right:16px;">
+              <input type="checkbox" id="sendChk" \${state.addForm.can_send?'checked':''}
+                onchange="state.addForm.can_send=this.checked">\${t.allowSend}
             </label>
             <label style="font-size:13px;">
-              <input type="checkbox" id="recvChk" \${state.addForm.can_receive?'checked':''} 
-                onchange="state.addForm.can_receive=this.checked"> \${t.allowRecv}
+              <input type="checkbox" id="recvChk" \${state.addForm.can_receive?'checked':''}
+                onchange="state.addForm.can_receive=this.checked">\${t.allowRecv}
             </label>
           </div>
         </form>
@@ -327,6 +307,7 @@ export async function onRequest(context) {
           <thead>
             <tr>
               <th>\${t.email}</th>
+              <th>@</th>
               <th>\${t.allowSend}</th>
               <th>\${t.allowRecv}</th>
               <th>\${t.created}</th>
@@ -334,27 +315,28 @@ export async function onRequest(context) {
             </tr>
           </thead>
           <tbody>
-            \${state.loading?'<tr><td colspan="5" class="loading">'+t.loading+'</td></tr>':(
+            \${state.loading?'<tr><td colspan="6" class="loading">'+t.loading+'</td></tr>':(
               state.accounts.length===0?
-              '<tr><td colspan="5" class="loading">-</td></tr>':
-              state.accounts.map(acc=>\`
+              '<tr><td colspan="6" class="loading">-</td></tr>':
+              state.accounts.map((acc,i)=>\`
                 <tr>
-                  <td>\${escapeHtml(acc.email)}</td>
+                  <td>\${escapeHtml(acc.email.split('@')[0])}</td>
+                  <td>@\${escapeHtml(acc.email.split('@')[1]||'')}</td>
                   <td>
                     <label class="switch">
-                      <input type="checkbox" \${acc.can_send?'checked':''} onchange="state.accounts.find(a=>a.email=='\${acc.email}').can_send=this.checked?1:0;updateAccount(state.accounts.find(a=>a.email=='\${acc.email}'))">
+                      <input type="checkbox" \${acc.can_send?'checked':''} data-index="\${i}" onchange="onToggleSend(this)">
                       <span class="slider"></span>
                     </label>
                   </td>
                   <td>
                     <label class="switch">
-                      <input type="checkbox" \${acc.can_receive?'checked':''} onchange="state.accounts.find(a=>a.email=='\${acc.email}').can_receive=this.checked?1:0;updateAccount(state.accounts.find(a=>a.email=='\${acc.email}'))">
+                      <input type="checkbox" \${acc.can_receive?'checked':''} data-index="\${i}" onchange="onToggleRecv(this)">
                       <span class="slider"></span>
                     </label>
                   </td>
                   <td>\${formatTime(acc.created_at)}</td>
                   <td>
-                    <button class="btn danger" onclick="deleteAccount('\${acc.email}')">\${t.delete}</button>
+                    <button class="btn danger" onclick="deleteAccount('\${escapeHtml(acc.email)}')">\${t.delete}</button>
                   </td>
                 </tr>
               \`).join('')
@@ -364,12 +346,14 @@ export async function onRequest(context) {
       \`;
       setTimeout(()=>{
         document.getElementById('addBtn').onclick = addAccount;
+        document.getElementById('domainSel').onchange = function(){
+          state.addForm.domain = this.value;
+        };
         document.querySelector('form').onsubmit = addAccount;
       },1);
     }
   }
 
-  // 初始化挂载全局函数
   window.state = state;
   window.setState = setState;
   window.logout = logout;
