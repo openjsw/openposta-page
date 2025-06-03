@@ -32,7 +32,7 @@ export async function onRequest(context) {
 
   // 语言切换
   const langSwitcher = `
-    <div style="position:absolute;top:10px;right:24px;font-size:15px;z-index:20;">
+    <div style="position:fixed;top:28px;right:48px;font-size:15px;">
       <a href="?lang=zh-CN"${lang==='zh-CN'?' style="font-weight:bold"':''}>简体中文</a> |
       <a href="?lang=en"${lang==='en'?' style="font-weight:bold"':''}>English</a>
     </div>
@@ -45,45 +45,65 @@ export async function onRequest(context) {
   <title>${t.title}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body { background: #f8f8fa; margin:0; font-family: system-ui,sans-serif; }
-    #app { max-width: 700px; margin: 46px auto 0 auto; background: #fff;
-      border-radius: 14px; box-shadow: 0 4px 18px #0002; padding: 38px 36px 34px 36px;}
-    h2 { margin: 0 0 22px 0; text-align:left; font-size:1.8em;}
-    .form { max-width:100%; margin: 0 auto 0 auto; }
-    .form-group { margin-bottom: 18px; }
-    .form-label { display:block; margin-bottom:7px; font-weight:500;}
-    .form-row { display:flex; gap:16px;}
-    .form-btn { width:100%; padding: 12px 0; border:none; background:#3577d4; color:#fff;
-      font-size:17px; border-radius:7px; cursor:pointer; transition:0.18s; }
-    .form-btn:disabled { background:#b8c4d2; cursor:not-allowed;}
-    .error-msg { background:#fff4f4; color:#d43a3a; padding:8px 12px; border-radius:6px;
-      margin-bottom:14px; text-align:center;}
-    .table-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px;}
-    .btn { padding: 7px 20px; background: #f6f7f8; color:#333; border-radius: 7px;
-      border:1px solid #e4e8ec; cursor:pointer; font-size:15px;}
-    .btn[disabled] { background: #ececec; color: #bbb; cursor:not-allowed;}
-    .table { border-collapse:collapse; width:100%; margin-top:18px;}
-    .table th, .table td { border:1px solid #ececec; padding: 10px 9px; text-align:center;}
-    .table th { background: #f5f7fa; font-weight:500;}
-    .switch { position:relative; display:inline-block; width:36px; height:22px; vertical-align:middle;}
+    html, body { height: 100%; margin:0; padding:0;}
+    body { background: #f8f8fa; min-height:100vh; font-family: system-ui,sans-serif; color:#222;}
+    #app { max-width: 820px; margin: 68px auto 0 auto; padding: 0 24px 44px 24px;}
+    h2 { margin: 0 0 28px 0; font-size:2.05em; font-weight:800; letter-spacing:0.01em;}
+    .login-container {
+      margin: 60px auto 0 auto; max-width:430px; background: #fff;
+      border-radius: 12px; box-shadow: 0 4px 28px #0002; padding: 44px 38px 34px 38px;
+    }
+    .form-label { display:block; margin-bottom:8px; font-weight:500;}
+    .form-input {
+      width: 100%; padding: 12px 13px; border:1.5px solid #dae1e8; border-radius: 7px;
+      font-size: 17px; margin-bottom: 20px; box-sizing: border-box; background:#f7fafd;
+      transition: border .18s;
+    }
+    .form-input:focus { border-color: #3577d4; background: #fff;}
+    .form-btn {
+      width: 100%; padding: 13px 0; border: none; background: #3577d4; color: #fff;
+      font-size: 18px; border-radius: 8px; cursor: pointer; font-weight:600; letter-spacing:0.05em;
+      transition: background .18s;
+    }
+    .form-btn:disabled { background: #b8c4d2; cursor: not-allowed; }
+    .error-msg { background:#fff2f2; color:#d12d2d; padding:10px 13px; border-radius:7px;
+      margin-bottom:17px; text-align:center; font-size:16px;}
+    .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;}
+    .admin-header h2 { margin:0; font-size:1.55em;}
+    .admin-header .btn { padding: 7px 22px; font-size:15px; border-radius: 7px; border: none; background: #eceff3;}
+    .admin-header .btn:hover { background: #e6edfa; }
+    .admin-form-row { display:flex; gap:22px; margin-bottom: 6px; align-items:end;}
+    .input-combo { display:flex; width:100%; border-radius:7px; border:1.5px solid #dae1e8; overflow:hidden;}
+    .input-combo input { border:none; background:#f7fafd; padding:12px 13px; font-size:17px; flex:1; min-width:0; outline:none;}
+    .input-combo select { border:none; background:#f6f7f9; font-size:17px; padding:12px 17px 12px 10px; min-width:100px; outline:none;}
+    .input-combo:focus-within { box-shadow:0 0 0 2px #c1d8f9;}
+    .admin-form-row .form-input { margin-bottom:0; }
+    .admin-form-row > div { flex:1; }
+    .admin-form-row .combo-wrap { flex:2.1; }
+    .admin-form-row .pwd-wrap { flex:2; }
+    .admin-form-row .submit-wrap { flex:1.1; min-width:110px;}
+    .form-switch-row { margin: 10px 0 16px 0;}
+    .form-switch-row label { font-size:15px; margin-right:16px;}
+    .form-switch-row input[type=checkbox] { margin-right:5px; }
+    table { border-collapse:collapse; width:100%; background:#fff; margin-top:18px;}
+    th, td { border:1px solid #ececec; padding: 12px 7px; text-align:center; font-size:15.5px;}
+    th { background: #f5f7fa; font-weight:500;}
+    .switch { position:relative; display:inline-block; width:36px; height:22px;}
     .switch input { opacity:0; width:0; height:0;}
     .slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0;
       background:#ccc; border-radius:18px; transition:.2s;}
-    .switch input:checked + .slider { background:#4285f4;}
+    .switch input:checked + .slider { background:#3577d4;}
     .slider:before { position:absolute; content:""; height:16px; width:16px; left:3px; bottom:3px;
       background:#fff; border-radius:50%; transition:.2s;}
     .switch input:checked + .slider:before { transform:translateX(14px);}
-    .danger { color:#e14; background: #fff7f7; border-color:#f7d3d3;}
+    .danger { color:#e14; background: #fff7f7; border: 1.5px solid #fad5d5;}
     .loading { color:#888; text-align:center; margin-top:16px;}
-    /* 输入框+下拉框连体样式 */
-    .input-combo { display: flex; width: 100%; border-radius:7px; overflow:hidden; border:1px solid #dadada; }
-    .input-combo input { border: none; border-right:1px solid #dadada; border-radius:0; font-size: 17px; padding:11px 13px; flex:1; min-width:0; outline:none; background:#fff;}
-    .input-combo select { border:none; background:#f6f7f9; font-size:17px; padding:11px 18px 11px 9px; min-width:100px; outline:none;}
-    .input-combo:focus-within { box-shadow:0 0 0 2px #c1d8f9;}
-    @media (max-width:600px) {
-      #app { padding:18px 2vw 10vw 2vw;}
-      .table th,.table td { font-size:13px; }
-      .form-row { flex-direction:column; gap:7px;}
+    @media (max-width: 700px) {
+      #app { max-width:100vw; padding:0 3vw 14vw 3vw;}
+      .login-container { padding:28px 8vw 22px 8vw;}
+      .admin-header, .admin-form-row { flex-direction:column; gap:0;}
+      .admin-header { align-items: flex-start; }
+      table, th, td { font-size:14px;}
     }
   </style>
 </head>
@@ -150,7 +170,7 @@ export async function onRequest(context) {
     }
   }
   async function addAccount(ev) {
-    if (ev) ev.preventDefault(); // 防止表单跳转
+    if (ev) ev.preventDefault();
     if (!state.addForm.email_prefix || !state.addForm.password) {
       alert(t.inputEmailPwd); return;
     }
@@ -231,25 +251,23 @@ export async function onRequest(context) {
   function render() {
     if (!state.loggedIn) {
       app.innerHTML = \`
-        <h2>\${t.adminLogin}</h2>
-        <form class="form" id="loginForm">
-          <div class="form-group">
+        <div class="login-container">
+          <h2>\${t.adminLogin}</h2>
+          <form id="loginForm" autocomplete="on">
             <label class="form-label">\${t.username}</label>
-            <input class="form-input" type="text" autocomplete="username"
+            <input class="form-input" type="text" autocomplete="username" autofocus
               value="\${escapeHtml(state.loginForm.username)}"
               oninput="this.value=this.value.replace(/\\s/g,'');state.loginForm.username=this.value">
-          </div>
-          <div class="form-group">
             <label class="form-label">\${t.password}</label>
             <input class="form-input" type="password" autocomplete="current-password"
               value="\${escapeHtml(state.loginForm.password)}"
               oninput="state.loginForm.password=this.value">
-          </div>
-          \${state.loginError?'<div class="error-msg">'+escapeHtml(state.loginError)+'</div>':''}
-          <button class="form-btn" type="submit" id="loginBtn" \${state.loginLoading?'disabled':''}>
-            \${state.loginLoading?t.loading:t.login}
-          </button>
-        </form>
+            \${state.loginError?'<div class="error-msg">'+escapeHtml(state.loginError)+'</div>':''}
+            <button class="form-btn" type="submit" id="loginBtn" \${state.loginLoading?'disabled':''}>
+              \${state.loginLoading?t.loading:t.login}
+            </button>
+          </form>
+        </div>
       \`;
       setTimeout(()=>{
         document.getElementById('loginForm').onsubmit = function(e){
@@ -259,13 +277,13 @@ export async function onRequest(context) {
       }, 1);
     } else {
       app.innerHTML = \`
-        <div class="table-bar">
+        <div class="admin-header">
           <h2>\${t.accounts}</h2>
           <button class="btn" onclick="logout()">\${t.logout}</button>
         </div>
-        <form class="form" id="addForm" style="margin-bottom:18px;">
-          <div class="form-row">
-            <div style="flex:3;">
+        <form id="addForm">
+          <div class="admin-form-row">
+            <div class="combo-wrap">
               <label class="form-label">\${t.email}</label>
               <div class="input-combo">
                 <input type="text" value="\${escapeHtml(state.addForm.email_prefix||'')}"
@@ -275,29 +293,29 @@ export async function onRequest(context) {
                 </select>
               </div>
             </div>
-            <div style="flex:2;">
+            <div class="pwd-wrap">
               <label class="form-label">\${t.pwd}</label>
-              <input class="form-input" type="password" style="width:100%;" value="\${escapeHtml(state.addForm.password||'')}"
+              <input class="form-input" type="password" value="\${escapeHtml(state.addForm.password||'')}"
                 placeholder="\${t.pwd}" oninput="state.addForm.password=this.value" autocomplete="new-password">
             </div>
-            <div style="flex:1;align-self:end;">
+            <div class="submit-wrap">
               <button class="form-btn" type="submit" id="addBtn" \${state.addLoading?'disabled':''}>
                 \${state.addLoading?t.loading:t.add}
               </button>
             </div>
           </div>
-          <div style="margin-top:10px;">
-            <label style="font-size:13px;margin-right:16px;">
+          <div class="form-switch-row">
+            <label>
               <input type="checkbox" id="sendChk" \${state.addForm.can_send?'checked':''}
                 onchange="state.addForm.can_send=this.checked">\${t.allowSend}
             </label>
-            <label style="font-size:13px;">
+            <label>
               <input type="checkbox" id="recvChk" \${state.addForm.can_receive?'checked':''}
                 onchange="state.addForm.can_receive=this.checked">\${t.allowRecv}
             </label>
           </div>
         </form>
-        <table class="table">
+        <table>
           <thead>
             <tr>
               <th>\${t.email}</th>
