@@ -27,8 +27,8 @@ export async function onRequest(context) {
 
   // 邮箱域名支持
   const domains = String(env.emaildomain || 'openjsw.net').split(',').map(s=>s.trim()).filter(Boolean);
-  const defaultDomain = domains[0] || 'openjsw.net';
-  const API_BASE = env.API_BASE || 'https://api-663395.openjsw.net';
+  const defaultDomain = domains[0] ;
+  const API_BASE = env.API_BASE ;
 
   // 语言切换
   const langSwitcher = `
