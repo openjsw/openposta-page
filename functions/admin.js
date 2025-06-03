@@ -25,11 +25,9 @@ export async function onRequest(context) {
   };
   const t = i18nDict[lang];
 
-  // 邮箱域名支持（多个英文逗号分隔，trim去空）
+  // 邮箱域名支持
   const domains = String(env.emaildomain || 'openjsw.net').split(',').map(s=>s.trim()).filter(Boolean);
   const defaultDomain = domains[0] || 'openjsw.net';
-
-  // 后端API
   const API_BASE = env.API_BASE || 'https://api-663395.openjsw.net';
 
   // 语言切换
@@ -55,10 +53,6 @@ export async function onRequest(context) {
     .form-group { margin-bottom: 18px; }
     .form-label { display:block; margin-bottom:7px; font-weight:500;}
     .form-row { display:flex; gap:16px;}
-    .form-input, .form-select { padding:11px 13px; border:1px solid #dadada; border-radius:7px;
-      font-size: 17px; box-sizing: border-box; flex:1; min-width:0;}
-    .form-input[type="text"], .form-input[type="password"] { min-width:120px;}
-    .form-select { flex:0 0 130px; max-width:130px; }
     .form-btn { width:100%; padding: 12px 0; border:none; background:#3577d4; color:#fff;
       font-size:17px; border-radius:7px; cursor:pointer; transition:0.18s; }
     .form-btn:disabled { background:#b8c4d2; cursor:not-allowed;}
@@ -81,6 +75,11 @@ export async function onRequest(context) {
     .switch input:checked + .slider:before { transform:translateX(14px);}
     .danger { color:#e14; background: #fff7f7; border-color:#f7d3d3;}
     .loading { color:#888; text-align:center; margin-top:16px;}
+    /* 输入框+下拉框连体样式 */
+    .input-combo { display: flex; width: 100%; border-radius:7px; overflow:hidden; border:1px solid #dadada; }
+    .input-combo input { border: none; border-right:1px solid #dadada; border-radius:0; font-size: 17px; padding:11px 13px; flex:1; min-width:0; outline:none; background:#fff;}
+    .input-combo select { border:none; background:#f6f7f9; font-size:17px; padding:11px 18px 11px 9px; min-width:100px; outline:none;}
+    .input-combo:focus-within { box-shadow:0 0 0 2px #c1d8f9;}
     @media (max-width:600px) {
       #app { padding:18px 2vw 10vw 2vw;}
       .table th,.table td { font-size:13px; }
@@ -96,7 +95,6 @@ export async function onRequest(context) {
   const API_BASE = ${JSON.stringify(API_BASE)};
   const domains = ${JSON.stringify(domains)};
   const defaultDomain = ${JSON.stringify(defaultDomain)};
-
   function formatTime(str) {
     if (!str) return '';
     let d = new Date(str);
@@ -106,7 +104,6 @@ export async function onRequest(context) {
   function escapeHtml(str) {
     return String(str||'').replace(/[<>&"]/g, s=>({'<':'&lt;','>':'&gt;','&':'&amp;'})[s]);
   }
-
   // 状态
   const app = document.getElementById('app');
   let state = {
@@ -115,9 +112,7 @@ export async function onRequest(context) {
     addForm: { email_prefix: '', domain: defaultDomain, password: '', can_send: true, can_receive: true },
     addLoading: false, accounts: [], loading: false,
   };
-
   function setState(obj) { Object.assign(state, obj); render(); }
-
   async function login() {
     setState({loginLoading:true, loginError:''});
     try {
@@ -154,7 +149,8 @@ export async function onRequest(context) {
       setState({accounts:[], loading:false});
     }
   }
-  async function addAccount() {
+  async function addAccount(ev) {
+    if (ev) ev.preventDefault(); // 防止表单跳转
     if (!state.addForm.email_prefix || !state.addForm.password) {
       alert(t.inputEmailPwd); return;
     }
@@ -220,8 +216,6 @@ export async function onRequest(context) {
       setState({loggedIn:false});
     }
   }
-
-  // --- Switch事件
   window.onToggleSend = function (el) {
     const idx = Number(el.dataset.index);
     const acc = state.accounts[idx];
@@ -234,12 +228,11 @@ export async function onRequest(context) {
     acc.can_receive = el.checked ? 1 : 0;
     updateAccount(acc);
   };
-
   function render() {
     if (!state.loggedIn) {
       app.innerHTML = \`
         <h2>\${t.adminLogin}</h2>
-        <form class="form" onsubmit="return false;">
+        <form class="form" id="loginForm">
           <div class="form-group">
             <label class="form-label">\${t.username}</label>
             <input class="form-input" type="text" autocomplete="username"
@@ -259,8 +252,10 @@ export async function onRequest(context) {
         </form>
       \`;
       setTimeout(()=>{
-        document.getElementById('loginBtn').onclick = login;
-        document.querySelector('form').onsubmit = login;
+        document.getElementById('loginForm').onsubmit = function(e){
+          e.preventDefault();
+          if (!state.loginLoading) login();
+        };
       }, 1);
     } else {
       app.innerHTML = \`
@@ -268,23 +263,22 @@ export async function onRequest(context) {
           <h2>\${t.accounts}</h2>
           <button class="btn" onclick="logout()">\${t.logout}</button>
         </div>
-        <form class="form" style="margin-bottom:18px;" onsubmit="return false;">
+        <form class="form" id="addForm" style="margin-bottom:18px;">
           <div class="form-row">
-            <div style="flex:2;">
+            <div style="flex:3;">
               <label class="form-label">\${t.email}</label>
-              <input class="form-input" type="text" style="width:100%;" value="\${escapeHtml(state.addForm.email_prefix||'')}"
-                placeholder="\${t.email}" oninput="state.addForm.email_prefix=this.value">
-            </div>
-            <div style="flex:1;">
-              <label class="form-label">\${t.domain}</label>
-              <select class="form-select" id="domainSel">
-                \${domains.map(d=>\`<option value="\${d}"\${d===state.addForm.domain?' selected':''}>@\${d}</option>\`).join('')}
-              </select>
+              <div class="input-combo">
+                <input type="text" value="\${escapeHtml(state.addForm.email_prefix||'')}"
+                  placeholder="\${t.email}" oninput="state.addForm.email_prefix=this.value" autocomplete="off">
+                <select id="domainSel">
+                  \${domains.map(d=>\`<option value="\${d}"\${d===state.addForm.domain?' selected':''}>@\${d}</option>\`).join('')}
+                </select>
+              </div>
             </div>
             <div style="flex:2;">
               <label class="form-label">\${t.pwd}</label>
               <input class="form-input" type="password" style="width:100%;" value="\${escapeHtml(state.addForm.password||'')}"
-                placeholder="\${t.pwd}" oninput="state.addForm.password=this.value">
+                placeholder="\${t.pwd}" oninput="state.addForm.password=this.value" autocomplete="new-password">
             </div>
             <div style="flex:1;align-self:end;">
               <button class="form-btn" type="submit" id="addBtn" \${state.addLoading?'disabled':''}>
@@ -345,21 +339,20 @@ export async function onRequest(context) {
         </table>
       \`;
       setTimeout(()=>{
-        document.getElementById('addBtn').onclick = addAccount;
+        document.getElementById('addForm').onsubmit = function(e){
+          addAccount(e);
+        };
         document.getElementById('domainSel').onchange = function(){
           state.addForm.domain = this.value;
         };
-        document.querySelector('form').onsubmit = addAccount;
       },1);
     }
   }
-
   window.state = state;
   window.setState = setState;
   window.logout = logout;
   window.deleteAccount = deleteAccount;
   window.updateAccount = updateAccount;
-
   checkLogin();
   render();
   </script>
