@@ -333,13 +333,12 @@ export async function onRequest(context) {
           box.innerHTML = I18N.notFound;
           return;
         }
-        box.innerHTML = [
-  `<div style="font-weight:600;">${I18N.subject}：${escapeHtml(data.mail.subject||I18N.noSubject)}</div>`,
-  `<div>${I18N.from}：${escapeHtml(data.mail.mail_from)}</div>`,
-  `<div>${I18N.time}：${formatTime(data.mail.created_at)}</div>`,
-  `<hr>`,
-  `<div class="mail-body">${escapeHtml(data.mail.body||I18N.noContent)}</div>`
-].join('');
+        box.innerHTML = `<div style="font-weight:600;">${I18N.subject}：${escapeHtml(data.mail.subject||I18N.noSubject)}</div>
+          <div>${I18N.from}：${escapeHtml(data.mail.mail_from)}</div>
+          <div>${I18N.time}：${formatTime(data.mail.created_at)}</div>
+          <hr>
+          <div style="white-space:pre-wrap;">${escapeHtml(data.mail.body||I18N.noContent)}</div>`;
+
       // 发件箱
       async function loadSent() {
         const mailList = document.getElementById('sentList');
@@ -376,13 +375,12 @@ export async function onRequest(context) {
           box.innerHTML = I18N.notFound;
           return;
         }
-        box.innerHTML = [
-  `<div style="font-weight:600;">${I18N.subject}：${escapeHtml(data.mail.subject||I18N.noSubject)}</div>`,
-  `<div>${I18N.to}：${escapeHtml(data.mail.mail_to)}</div>`,
-  `<div>${I18N.time}：${formatTime(data.mail.created_at)}</div>`,
-  `<hr>`,
-  `<div class="mail-body">${escapeHtml(data.mail.body||I18N.noContent)}</div>`
-].join('');
+        box.innerHTML = `<div style="font-weight:600;">${I18N.subject}：${escapeHtml(data.mail.subject||I18N.noSubject)}</div>
+          <div>${I18N.from}：${escapeHtml(data.mail.mail_from)}</div>
+          <div>${I18N.time}：${formatTime(data.mail.created_at)}</div>
+          <hr>
+          <div style="white-space:pre-wrap;">${escapeHtml(data.mail.body||I18N.noContent)}</div>`;
+
 
       // ========== 写信 ==========
       document.getElementById('composeForm').onsubmit = async function(e){
