@@ -97,7 +97,8 @@ export async function onRequest(context) {
     .subject { font-weight: 600; }
     .from, .to { color: #888; font-size: 13px; margin-left: 6px; }
     .date { float: right; color: #aaa; font-size: 12px; }
-    .detail-box { margin-top: 22px; padding: 15px; border-radius: 8px; background: #f7fafd; border: 1px solid #e4ebf3; }
+    .detail-box { margin-top: 22px; padding: 15px; border-radius: 8px; background: #f7fafd; border: 1px solid #e4ebf3; word-break: break-all; overflow-wrap: anywhere;}
+    .mail-body { white-space: pre-wrap; word-break: break-all; overflow-wrap: anywhere; }
     .empty { color: #aaa; text-align: center; margin: 35px 0; }
     .compose-form label { display:block; margin-top: 13px; font-weight:500;}
     .compose-form input, .compose-form textarea {
@@ -327,12 +328,14 @@ export async function onRequest(context) {
           box.innerHTML = I18N.notFound;
           return;
         }
-        box.innerHTML = \`<div style="font-weight:600;">\${I18N.subject}：\${escapeHtml(data.mail.subject||I18N.noSubject)}</div>
-                         <div>\${I18N.from}：\${escapeHtml(data.mail.mail_from)}</div>
-                         <div>\${I18N.time}：\${formatTime(data.mail.created_at)}</div>
-                         <hr>
-                         <div style="white-space:pre-wrap;">\${escapeHtml(data.mail.body||I18N.noContent)}</div>\`;
-      }
+        box.innerHTML = `
+          <div style="font-weight:600;">${I18N.subject}：${escapeHtml(data.mail.subject||I18N.noSubject)}</div>
+          <div>${I18N.from}：${escapeHtml(data.mail.mail_from)}</div>
+          <div>${I18N.time}：${formatTime(data.mail.created_at)}</div>
+          <hr>
+          <div class="mail-body">${escapeHtml(data.mail.body||I18N.noContent)}</div>
+       `;
+       }
       // 发件箱
       async function loadSent() {
         const mailList = document.getElementById('sentList');
@@ -369,13 +372,14 @@ export async function onRequest(context) {
           box.innerHTML = I18N.notFound;
           return;
         }
-        box.innerHTML = \`<div style="font-weight:600;">\${I18N.subject}：\${escapeHtml(data.mail.subject||I18N.noSubject)}</div>
-                         <div>\${I18N.to}：\${escapeHtml(data.mail.mail_to)}</div>
-                         <div>\${I18N.time}：\${formatTime(data.mail.created_at)}</div>
-                         <hr>
-                         <div style="white-space:pre-wrap;">\${escapeHtml(data.mail.body||I18N.noContent)}</div>\`;
-      }
-
+        box.innerHTML = `
+          <div style="font-weight:600;">${I18N.subject}：${escapeHtml(data.mail.subject||I18N.noSubject)}</div>
+          <div>${I18N.from}：${escapeHtml(data.mail.mail_from)}</div>
+          <div>${I18N.time}：${formatTime(data.mail.created_at)}</div>
+          <hr>
+          <div class="mail-body">${escapeHtml(data.mail.body||I18N.noContent)}</div>
+      `;
+}
       // ========== 写信 ==========
       document.getElementById('composeForm').onsubmit = async function(e){
         e.preventDefault();
