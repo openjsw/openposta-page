@@ -69,11 +69,18 @@ export async function onRequest(context) {
   <style>
     body { font-family: system-ui,sans-serif; margin: 0; background: #f8f9fb; }
     .layout { display: flex; min-height: 100vh; }
+    .mail-body {
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+
     .sidebar {
       width: 180px; background: #f7f7f7; box-shadow: 1px 0 8px #0001;
       padding: 34px 0 0 0; display: flex; flex-direction: column;
       align-items: center;
     }
+
     .sidebar .menu-btn {
       display: block; width: 120px; padding: 11px 0; margin: 7px 0;
       border: none; background: #eaf1fb; color: #3577d4; border-radius: 8px;
@@ -327,11 +334,11 @@ export async function onRequest(context) {
           box.innerHTML = I18N.notFound;
           return;
         }
-        box.innerHTML = \`<div style="font-weight:600;">\${I18N.subject}：\${escapeHtml(data.mail.subject||I18N.noSubject)}</div>
-                         <div>\${I18N.from}：\${escapeHtml(data.mail.mail_from)}</div>
-                         <div>\${I18N.time}：\${formatTime(data.mail.created_at)}</div>
-                         <hr>
-                         <div style="white-space:pre-wrap;">\${escapeHtml(data.mail.body||I18N.noContent)}</div>\`;
+        box.innerHTML = `<div style="font-weight:600;">${I18N.subject}：${escapeHtml(data.mail.subject||I18N.noSubject)}</div>
+                 <div>${I18N.from}：${escapeHtml(data.mail.mail_from)}</div>
+                 <div>${I18N.time}：${formatTime(data.mail.created_at)}</div>
+                 <hr>
+                 <div class="mail-body">${escapeHtml(data.mail.body||I18N.noContent)}</div>`;
       }
       // 发件箱
       async function loadSent() {
