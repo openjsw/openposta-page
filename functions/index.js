@@ -72,7 +72,7 @@ export async function onRequest(context) {
     .mail-body {
       white-space: pre-wrap;
       word-break: break-word;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word; /* ✅ 更老版本兼容 */
     }
 
     .sidebar {
