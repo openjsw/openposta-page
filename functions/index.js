@@ -1,13 +1,9 @@
 export async function onRequest(context) {
   const env = context.env || {};
-  const url = new URL(context.request.url);
+  const apiBase = env.API_BASE || '';
 
-  // 国际化（示例，实际可按需扩展）
-  const lang = 'zh-CN';
-
-  // SSR页面模板
   const html = `<!DOCTYPE html>
-<html lang="${lang}">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <title>简邮邮箱</title>
@@ -84,8 +80,8 @@ export async function onRequest(context) {
   </div>
 </div>
 <script>
-  const API_BASE = "";
-  function esc(s){return (s||'').replace(/[<>&"]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c]));}
+  const API_BASE = ${JSON.stringify(apiBase)};
+  function esc(s){return (s||'').replace(/[<>&"]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c]);}
   function formatTime(t){let d=new Date(t);return d.getFullYear()+"/"+(d.getMonth()+1)+"/"+d.getDate()+" "+d.getHours()+":"+('0'+d.getMinutes()).slice(-2);}
   let attachmentsForSend = [];
 
