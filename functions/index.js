@@ -1,429 +1,372 @@
-export async function onRequest(context) {
-  const env = context.env || {};
-  const url = new URL(context.request.url);
-
-  // 支持 URL 查询 lang/首选语言/默认环境变量，自动多语言
-  let lang = url.searchParams.get('lang')
-    || (context.request.headers.get('accept-language')?.split(',')[0] || '').toLowerCase()
-    || (env.DEFAULT_LANG || 'zh-CN');
-  lang = lang.startsWith('en') ? 'en' : 'zh-CN';
-
-  // 多语言字典
-  const i18nDict = {
-    'zh-CN': {
-      title: env.SITE_TITLE_ZH || '简邮邮局收发件',
-      metaDesc: env.META_DESC_ZH || '轻量级邮件客户端',
-      inbox: '收件箱', sent: '发件箱', compose: '写信',
-      login: '邮箱登录', email: '邮箱', password: '密码', loginBtn: '登录',
-      logout: '退出登录', noMail: '暂无邮件', noSent: '暂无发件', send: '发送',
-      sentSuccess: '已发送！', sentFail: '发送失败', sending: '发送中...',
-      loading: '加载中...', notFound: '邮件不存在或无权限查看。',
-      subject: '主题', from: '发件人', to: '收件人', time: '时间', content: '正文',
-      netError: '网络错误', loginFail: '登录失败！', loginPending: '登录中...',
-      noSubject: '(无主题)', noContent: '(无内容)', loadFail: '加载失败'
-    },
-    'en': {
-      title: env.SITE_TITLE_EN || 'JianMail WebMail',
-      metaDesc: env.META_DESC_EN || 'Lightweight mail client',
-      inbox: 'Inbox', sent: 'Sent', compose: 'Compose',
-      login: 'Mail Login', email: 'Email', password: 'Password', loginBtn: 'Login',
-      logout: 'Logout', noMail: 'No mails', noSent: 'No sent mail', send: 'Send',
-      sentSuccess: 'Sent!', sentFail: 'Send failed', sending: 'Sending...',
-      loading: 'Loading...', notFound: 'Mail not found or no permission.',
-      subject: 'Subject', from: 'From', to: 'To', time: 'Time', content: 'Content',
-      netError: 'Network Error', loginFail: 'Login failed!', loginPending: 'Logging in...',
-      noSubject: '(No subject)', noContent: '(No content)', loadFail: 'Load failed'
-    }
-  };
-  const i18n = i18nDict[lang] || i18nDict['zh-CN'];
-
-  function htmlEscape(str) {
-    return String(str || '').replace(/[<>&"]/g, s =>
-      ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[s]));
+// ========== 简单 i18n 多语言实现 ==========
+const LANGS = {
+  zh: {
+    title: "简易邮箱",
+    login: "登录",
+    logout: "退出登录",
+    email: "邮箱",
+    password: "密码",
+    register: "注册",
+    inbox: "收件箱",
+    sent: "已发送",
+    compose: "写信",
+    to: "收件人",
+    subject: "主题",
+    body: "正文",
+    send: "发送",
+    attachments: "附件",
+    upload: "上传",
+    details: "详情",
+    back: "返回",
+    download: "下载",
+    reply: "回复",
+    language: "语言",
+    switch_to_en: "English",
+    switch_to_zh: "简体中文",
+    html_body: "HTML 正文",
+    attach_hint: "可选，支持多文件",
+    no_mail: "暂无邮件",
+    choose_file: "选择文件",
+    sending: "发送中...",
+    sent_success: "发送成功",
+    sent_fail: "发送失败",
+    login_success: "登录成功",
+    login_fail: "登录失败",
+    register_success: "注册成功",
+    register_fail: "注册失败",
+    loading: "加载中...",
+    confirm_logout: "确定要退出登录吗？"
+  },
+  en: {
+    title: "Simple Mailbox",
+    login: "Login",
+    logout: "Logout",
+    email: "Email",
+    password: "Password",
+    register: "Register",
+    inbox: "Inbox",
+    sent: "Sent",
+    compose: "Compose",
+    to: "To",
+    subject: "Subject",
+    body: "Body",
+    send: "Send",
+    attachments: "Attachments",
+    upload: "Upload",
+    details: "Details",
+    back: "Back",
+    download: "Download",
+    reply: "Reply",
+    language: "Language",
+    switch_to_en: "English",
+    switch_to_zh: "简体中文",
+    html_body: "HTML Body",
+    attach_hint: "Optional, multi-file supported",
+    no_mail: "No mail yet",
+    choose_file: "Choose File",
+    sending: "Sending...",
+    sent_success: "Mail sent",
+    sent_fail: "Send failed",
+    login_success: "Login success",
+    login_fail: "Login failed",
+    register_success: "Register success",
+    register_fail: "Register failed",
+    loading: "Loading...",
+    confirm_logout: "Are you sure you want to logout?"
   }
+};
+let lang = localStorage.getItem('lang') || navigator.language.slice(0,2) || 'en';
+if (!(lang in LANGS)) lang = 'en';
 
-  const apiBase = env.API_BASE || '';
-  const metaTags = `
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1.0">
-    <title>${htmlEscape(i18n.title)}</title>
-    <meta name="description" content="${htmlEscape(i18n.metaDesc)}">
-    <meta name="robots" content="index, follow">
-    <meta property="og:title" content="${htmlEscape(i18n.title)}">
-    <meta property="og:description" content="${htmlEscape(i18n.metaDesc)}">
-  `.replace(/^\s+/gm, '');
-  const csp = `default-src 'self'; connect-src 'self' https://api-663395.openjsw.net; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';`;
+function t(key) { return LANGS[lang][key] || key; }
+function switchLang(to) { lang = to; localStorage.setItem('lang', lang); render(); }
 
-  const langSwitcher = `
-    <div style="position:absolute;top:10px;right:30px;font-size:14px;z-index:20;">
-      <a href="?lang=zh-CN"${lang==='zh-CN'?' style="font-weight:bold"':''}>简体中文</a> |
-      <a href="?lang=en"${lang==='en'?' style="font-weight:bold"':''}>English</a>
-    </div>
-  `;
-
-  const html = `<!DOCTYPE html>
-<html lang="${htmlEscape(lang)}">
-<head>
-  ${metaTags}
-  <meta http-equiv="Content-Security-Policy" content="${csp}">
-  <style>
-    body { font-family: system-ui,sans-serif; margin: 0; background: #f8f9fb; }
-    .layout { display: flex; min-height: 100vh; }
-    .sidebar {
-      width: 180px; background: #f7f7f7; box-shadow: 1px 0 8px #0001;
-      padding: 34px 0 0 0; display: flex; flex-direction: column;
-      align-items: center;
-    }
-    .sidebar .menu-btn {
-      display: block; width: 120px; padding: 11px 0; margin: 7px 0;
-      border: none; background: #eaf1fb; color: #3577d4; border-radius: 8px;
-      font-size: 15px; cursor: pointer; text-align: left; text-indent: 8px;
-      transition: 0.2s;
-    }
-    .sidebar .menu-btn.active, .sidebar .menu-btn:hover { background: #4285f4; color: #fff; }
-    .content {
-      flex: 1; max-width: 520px; margin: 36px auto; background: #fff;
-      border-radius: 10px; box-shadow: 0 2px 14px #0001; padding: 26px 30px 34px 30px;
-      min-height: 420px;
-    }
-    .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
-    .header-bar h2 { margin: 0; }
-    .logout-btn { background: none; border: none; color: #999; font-size: 15px; cursor: pointer;}
-    .mail-list { margin: 0 0 0 0; }
-    .mail-item {
-      padding: 13px 0; border-bottom: 1px solid #eee; cursor: pointer; transition: 0.15s;
-    }
-    .mail-item:hover { background: #f2f7fd; }
-    .subject { font-weight: 600; }
-    .from, .to { color: #888; font-size: 13px; margin-left: 6px; }
-    .date { float: right; color: #aaa; font-size: 12px; }
-    .detail-box { margin-top: 22px; padding: 15px; border-radius: 8px; background: #f7fafd; border: 1px solid #e4ebf3; }
-    .empty { color: #aaa; text-align: center; margin: 35px 0; }
-    .compose-form label { display:block; margin-top: 13px; font-weight:500;}
-    .compose-form input, .compose-form textarea {
-      width: 100%; padding: 7px 12px; font-size: 15px; border: 1px solid #ccd7e4; border-radius: 5px; margin-top: 3px;
-    }
-    .compose-form textarea { min-height: 80px; resize: vertical;}
-    .compose-form button { margin-top: 17px; padding: 7px 28px; background: #4285f4; color: #fff; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; }
-    .compose-form button:disabled { background: #aaa; }
-    #loginForm { max-width: 340px; margin: 80px auto; padding: 38px 32px 32px 32px; /* 左右留白更大，底部略窄一点 */ background: #fff; border-radius: 12px; box-shadow: 0 2px 16px #0001; border: 1px solid #f0f0f5; } #loginForm .input-row { margin-bottom: 20px; } #loginForm label { display: block; margin-bottom: 5px; font-size: 15px; color: #222; font-weight: 500; } #loginForm input { width: 100%; padding: 10px 13px; font-size: 15px; border: 1.2px solid #e1e1ea; border-radius: 6px; box-sizing: border-box; background: #fafbfe; margin-top: 4px; transition: border 0.2s; } #loginForm input:focus { border: 1.5px solid #4285f4; outline: none; background: #fff; } #loginForm button { padding: 10px 24px; border: none; background: #4285f4; color: #fff; border-radius: 7px; font-size: 17px; font-weight: 500; cursor: pointer; width: 100%; margin-top: 6px; box-shadow: 0 1px 6px #4285f41a; transition: background 0.2s; } #loginForm button:disabled { background: #b7cef7; }
-  </style>
-</head>
-<body>
-  ${langSwitcher}
-  <!-- 登录表单 -->
-  <form id="loginForm" style="display:none;">
-    <h2 style="text-align:center;">${htmlEscape(i18n.login)}</h2>
-    <div class="input-row">
-      <label>${htmlEscape(i18n.email)}</label>
-      <input type="email" id="email" required placeholder="your@email.com">
-    </div>
-    <div class="input-row">
-      <label>${htmlEscape(i18n.password)}</label>
-      <input type="password" id="password" required placeholder="${htmlEscape(i18n.password)}">
-    </div>
-    <button type="submit">${htmlEscape(i18n.loginBtn)}</button>
-  </form>
-  <div class="layout" id="mainLayout" style="display:none;">
-    <div class="sidebar">
-      <button class="menu-btn" id="menu-inbox">${htmlEscape(i18n.inbox)}</button>
-      <button class="menu-btn" id="menu-sent">${htmlEscape(i18n.sent)}</button>
-      <button class="menu-btn" id="menu-compose">${htmlEscape(i18n.compose)}</button>
-      <button class="logout-btn" id="logoutBtn" style="margin-top:30px;">${htmlEscape(i18n.logout)}</button>
-    </div>
-    <div class="content">
-      <div id="inboxBox">
-        <div class="header-bar"><h2>${htmlEscape(i18n.inbox)}</h2></div>
-        <div class="mail-list" id="inboxList"></div>
-        <div class="empty" id="inboxEmpty" style="display:none;">${htmlEscape(i18n.noMail)}</div>
-        <div class="detail-box" id="inboxDetail" style="display:none;"></div>
-      </div>
-      <div id="sentBox" style="display:none;">
-        <div class="header-bar"><h2>${htmlEscape(i18n.sent)}</h2></div>
-        <div class="mail-list" id="sentList"></div>
-        <div class="empty" id="sentEmpty" style="display:none;">${htmlEscape(i18n.noSent)}</div>
-        <div class="detail-box" id="sentDetail" style="display:none;"></div>
-      </div>
-      <div id="composeBox" style="display:none;">
-        <div class="header-bar"><h2>${htmlEscape(i18n.compose)}</h2></div>
-        <form class="compose-form" id="composeForm">
-          <label>${htmlEscape(i18n.to)}</label>
-          <input type="email" id="to" required placeholder="收件人邮箱">
-          <label>${htmlEscape(i18n.subject)}</label>
-          <input type="text" id="subject" placeholder="${htmlEscape(i18n.subject)}">
-          <label>${htmlEscape(i18n.content)}</label>
-          <textarea id="body" required></textarea>
-          <button type="submit">${htmlEscape(i18n.send)}</button>
-        </form>
-        <div class="empty" id="composeStatus" style="display:none;"></div>
-      </div>
-    </div>
-  </div>
-  <script>
-    // ===================== 配置和多语言 =====================
-    const API_BASE = ${JSON.stringify(apiBase)};
-    const LANG = ${JSON.stringify(lang)};
-    const I18N = ${JSON.stringify(i18n)};
-
-    // ========= 工具 =========
-    function escapeHtml(str) {
-      return String(str||'').replace(/[<>&"]/g, s=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"})[s]);
-    }
-    function formatTime(t) {
-      if (!t) return '';
-      let d = new Date(t);
-      return \`\${d.getFullYear()}/\${d.getMonth()+1}/\${d.getDate()} \${d.getHours()}:\${('0'+d.getMinutes()).slice(-2)}\`;
-    }
-    function setActiveMenu(menu) {
-      for (let btn of document.querySelectorAll('.menu-btn')) btn.classList.remove('active');
-      document.getElementById('menu-' + menu).classList.add('active');
-    }
-    function setStatus(msg, color) {
-      const s = document.getElementById('composeStatus');
-      s.textContent = msg || '';
-      s.style.display = msg ? '' : 'none';
-      s.style.color = color || '#09be6d';
-    }
-
-    // ========= 多语言UI初始化 =========
-  function initI18nUI() {
-  // 登录表单
-  document.querySelector('#loginForm h2').textContent = I18N.login;
-  var loginLabels = document.querySelectorAll('#loginForm .input-row label');
-  if (loginLabels.length >= 2) {
-    loginLabels[0].textContent = I18N.email;
-    loginLabels[1].textContent = I18N.password;
+// ========== DOM helpers ==========
+function qs(sel) { return document.querySelector(sel); }
+function ce(tag, opts = {}) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(opts)) {
+    if (k.startsWith('on')) el.addEventListener(k.slice(2).toLowerCase(), v);
+    else if (k === 'html') el.innerHTML = v;
+    else if (k === 'text') el.textContent = v;
+    else if (k === 'style') Object.assign(el.style, v);
+    else if (k === 'attrs') for (const [kk, vv] of Object.entries(v)) el.setAttribute(kk, vv);
+    else el[k] = v;
   }
-  document.querySelector('#loginForm button').textContent = I18N.loginBtn;
-  // 菜单
-  document.getElementById('menu-inbox').textContent = I18N.inbox;
-  document.getElementById('menu-sent').textContent = I18N.sent;
-  document.getElementById('menu-compose').textContent = I18N.compose;
-  document.getElementById('logoutBtn').textContent = I18N.logout;
-  // 标题
-  document.querySelector('#inboxBox .header-bar h2').textContent = I18N.inbox;
-  document.querySelector('#sentBox .header-bar h2').textContent = I18N.sent;
-  document.querySelector('#composeBox .header-bar h2').textContent = I18N.compose;
-  // 占位/空内容
-  document.getElementById('inboxEmpty').textContent = I18N.noMail;
-  document.getElementById('sentEmpty').textContent = I18N.noSent;
-  // 写信
-  var composeLabels = document.querySelectorAll('#composeForm label');
-  if (composeLabels.length >= 3) {
-    composeLabels[0].textContent = I18N.to;
-    composeLabels[1].textContent = I18N.subject;
-    composeLabels[2].textContent = I18N.content;
-  }
-  document.querySelector('#composeForm button').textContent = I18N.send;
+  return el;
 }
 
-
-    document.addEventListener('DOMContentLoaded', function() {
-      // 多语言UI初始化
-      initI18nUI();
-
-      // ========== UI切换 ==========
-      function showLogin() {
-        document.getElementById('loginForm').style.display = '';
-        document.getElementById('mainLayout').style.display = 'none';
-      }
-      function showMain(menu) {
-        document.getElementById('loginForm').style.display = 'none';
-        document.getElementById('mainLayout').style.display = '';
-        showBox(menu || 'inbox');
-      }
-      function showBox(menu) {
-        setActiveMenu(menu);
-        document.getElementById('inboxBox').style.display = menu === 'inbox' ? '' : 'none';
-        document.getElementById('sentBox').style.display = menu === 'sent' ? '' : 'none';
-        document.getElementById('composeBox').style.display = menu === 'compose' ? '' : 'none';
-        setStatus('');
-        if (menu === 'inbox') loadInbox();
-        if (menu === 'sent') loadSent();
-        if (menu === 'compose') {
-          document.getElementById('composeForm').reset();
-        }
-      }
-
-      // ========== 登录状态检测 ==========
-      async function checkLogin() {
-        let res = await fetch(API_BASE + '/user/check', { credentials: 'include' });
-        let data = await res.json();
-        if (data.loggedIn) {
-          showMain('inbox');
-        } else {
-          showLogin();
-        }
-      }
-
-      // ========== 登录事件 ==========
-      document.getElementById('loginForm').onsubmit = async function(e){
-        e.preventDefault();
-        const email = document.getElementById('email').value.trim();
-        const password = document.getElementById('password').value;
-        const btn = this.querySelector('button');
-        btn.disabled = true;
-        btn.innerText = I18N.loginPending;
-        try {
-          let res = await fetch(API_BASE + '/user/login', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            credentials: 'include',
-            body: JSON.stringify({ email, password })
-          });
-          let data = await res.json();
-          if (data.success) {
-            showMain('inbox');
-          } else {
-            alert(data.error || I18N.loginFail);
-          }
-        } catch {
-          alert(I18N.netError);
-        }
-        btn.disabled = false;
-        btn.innerText = I18N.loginBtn;
-      };
-
-      // ========== 登出事件 ==========
-      document.getElementById('logoutBtn').onclick = async function(){
-        await fetch(API_BASE + '/user/logout', { method:'POST', credentials:'include' });
-        showLogin();
-      };
-
-      // ========== 邮件加载 ==========
-      // 收件箱
-      async function loadInbox() {
-        const mailList = document.getElementById('inboxList');
-        mailList.innerHTML = '';
-        document.getElementById('inboxDetail').style.display = 'none';
-        document.getElementById('inboxEmpty').style.display = 'none';
-        try {
-          let res = await fetch(API_BASE + '/user/inbox', { credentials: 'include' });
-          let data = await res.json();
-          if (data.mails && data.mails.length) {
-            for (const m of data.mails) {
-              let item = document.createElement('div');
-              item.className = 'mail-item';
-              item.innerHTML = \`<span class="subject">\${escapeHtml(m.subject || I18N.noSubject)}</span>
-                                <span class="from">\${escapeHtml(m.mail_from)}</span>
-                                <span class="date">\${formatTime(m.created_at)}</span>\`;
-              item.onclick = ()=>showInboxDetail(m.id);
-              mailList.appendChild(item);
-            }
-          } else {
-            document.getElementById('inboxEmpty').style.display = '';
-          }
-        } catch {
-          mailList.innerHTML = \`<div class="empty">\${I18N.loadFail}</div>\`;
-        }
-      }
-      async function showInboxDetail(id) {
-        let box = document.getElementById('inboxDetail');
-        box.innerHTML = I18N.loading;
-        box.style.display = '';
-        let res = await fetch(API_BASE + \`/user/mail?id=\${encodeURIComponent(id)}\`, { credentials: 'include' });
-        let data = await res.json();
-        if (!data.mail) {
-          box.innerHTML = I18N.notFound;
-          return;
-        }
-        box.innerHTML = \`<div style="font-weight:600;">\${I18N.subject}：\${escapeHtml(data.mail.subject||I18N.noSubject)}</div>
-                         <div>\${I18N.from}：\${escapeHtml(data.mail.mail_from)}</div>
-                         <div>\${I18N.time}：\${formatTime(data.mail.created_at)}</div>
-                         <hr>
-                         <div style="white-space:pre-wrap;">\${escapeHtml(data.mail.body||I18N.noContent)}</div>\`;
-      }
-      // 发件箱
-      async function loadSent() {
-        const mailList = document.getElementById('sentList');
-        mailList.innerHTML = '';
-        document.getElementById('sentDetail').style.display = 'none';
-        document.getElementById('sentEmpty').style.display = 'none';
-        try {
-          let res = await fetch(API_BASE + '/user/sent', { credentials: 'include' });
-          let data = await res.json();
-          if (data.mails && data.mails.length) {
-            for (const m of data.mails) {
-              let item = document.createElement('div');
-              item.className = 'mail-item';
-              item.innerHTML = \`<span class="subject">\${escapeHtml(m.subject || I18N.noSubject)}</span>
-                                <span class="to">\${escapeHtml(m.mail_to)}</span>
-                                <span class="date">\${formatTime(m.created_at)}</span>\`;
-              item.onclick = ()=>showSentDetail(m.id);
-              mailList.appendChild(item);
-            }
-          } else {
-            document.getElementById('sentEmpty').style.display = '';
-          }
-        } catch {
-          mailList.innerHTML = \`<div class="empty">\${I18N.loadFail}</div>\`;
-        }
-      }
-      async function showSentDetail(id) {
-        let box = document.getElementById('sentDetail');
-        box.innerHTML = I18N.loading;
-        box.style.display = '';
-        let res = await fetch(API_BASE + \`/user/sentmail?id=\${encodeURIComponent(id)}\`, { credentials: 'include' });
-        let data = await res.json();
-        if (!data.mail) {
-          box.innerHTML = I18N.notFound;
-          return;
-        }
-        box.innerHTML = \`<div style="font-weight:600;">\${I18N.subject}：\${escapeHtml(data.mail.subject||I18N.noSubject)}</div>
-                         <div>\${I18N.to}：\${escapeHtml(data.mail.mail_to)}</div>
-                         <div>\${I18N.time}：\${formatTime(data.mail.created_at)}</div>
-                         <hr>
-                         <div style="white-space:pre-wrap;">\${escapeHtml(data.mail.body||I18N.noContent)}</div>\`;
-      }
-
-      // ========== 写信 ==========
-      document.getElementById('composeForm').onsubmit = async function(e){
-        e.preventDefault();
-        const to = document.getElementById('to').value.trim();
-        const subject = document.getElementById('subject').value.trim();
-        const body = document.getElementById('body').value.trim();
-        const btn = this.querySelector('button');
-        setStatus(I18N.sending, '#888');
-        btn.disabled = true;
-        try {
-          let res = await fetch(API_BASE + '/user/send', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            credentials: 'include',
-            body: JSON.stringify({ to, subject, body })
-          });
-          let data = await res.json();
-          if (data.success) {
-            setStatus(I18N.sentSuccess);
-            this.reset();
-          } else {
-            setStatus(data.error || I18N.sentFail, '#e55');
-          }
-        } catch {
-          setStatus(I18N.sentFail, '#e55');
-        }
-        btn.disabled = false;
-        btn.textContent = I18N.send;
-      };
-
-      // ========== 菜单切换 ==========
-      document.getElementById('menu-inbox').onclick = () => showBox('inbox');
-      document.getElementById('menu-sent').onclick = () => showBox('sent');
-      document.getElementById('menu-compose').onclick = () => showBox('compose');
-
-      // ========== 初始化 ==========
-      checkLogin();
+// ========== API helpers ==========
+const API = {
+  async post(path, data) {
+    const resp = await fetch(path, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      credentials: 'include',
+      body: JSON.stringify(data)
     });
-  </script>
-</body>
-</html>
-`;
+    return resp.json();
+  },
+  async get(path) {
+    const resp = await fetch(path, {credentials: 'include'});
+    return resp.json();
+  },
+  async upload(path, files) {
+    const fd = new FormData();
+    files.forEach(f => fd.append('file', f));
+    const resp = await fetch(path, {method:'POST', body:fd, credentials:'include'});
+    return resp.json();
+  }
+};
 
-  return new Response(html, {
-    headers: {
-      'content-type': 'text/html; charset=utf-8',
-      'cache-control': 'no-store',
-      'x-frame-options': 'SAMEORIGIN',
-    }
-  });
+// ========== 状态 ==========
+let state = {
+  page: 'login', // login | register | inbox | sent | compose | detail
+  user: null,
+  inbox: [],
+  sent: [],
+  currentMail: null,
+  attachFiles: [],
+  attachments: [],
+  loading: false,
+  msg: ''
+};
+
+function setState(obj) {
+  Object.assign(state, obj);
+  render();
 }
+
+// ========== 无障碍：键盘支持 ==========
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && state.page === 'detail') setState({page: 'inbox', currentMail: null});
+});
+
+// ========== 渲染 ==========
+async function render() {
+  const $ = (h, p = {}) => ce(h, p);
+  const root = qs('#app');
+  root.innerHTML = '';
+  // Header：多语言 + 导航
+  const header = $('header', {attrs: {role: 'banner', 'aria-label': t('title')}, style: {display: 'flex', gap:'1em', alignItems:'center'}});
+  header.append(
+    $('h1', {text: t('title'), attrs: {tabindex:'0'}}),
+    $('nav', {attrs:{'aria-label': t('language')}, style:{marginLeft:'auto'}})
+  );
+  header.lastChild.append(
+    $('button', {text:t('switch_to_zh'), attrs:{tabindex:'0', 'aria-label':'切换简体中文'}, onClick:()=>switchLang('zh'), style:{fontWeight: lang==='zh'?'bold':'normal'}}),
+    $('button', {text:t('switch_to_en'), attrs:{tabindex:'0', 'aria-label':'Switch to English'}, onClick:()=>switchLang('en'), style:{fontWeight: lang==='en'?'bold':'normal', marginLeft:'0.5em'}})
+  );
+  root.append(header);
+
+  // 登录/注册页面
+  if (state.page==='login' || state.page==='register') {
+    const isReg = state.page==='register';
+    const form = $('form', {
+      attrs: {role: 'form', 'aria-labelledby': isReg?'reg-title':'login-title'},
+      onsubmit: async e => {
+        e.preventDefault();
+        setState({loading:true,msg:''});
+        const email = qs('#email').value.trim();
+        const password = qs('#password').value;
+        try {
+          if (isReg) {
+            let d = await API.post('/user/register', {email, password});
+            if (d.success) setState({page:'login', msg: t('register_success')});
+            else setState({msg: d.error || t('register_fail'), loading:false});
+          } else {
+            let d = await API.post('/user/login', {email, password});
+            if (d.success) { setState({msg: t('login_success')}); await checkAuth();}
+            else setState({msg: d.error || t('login_fail'), loading:false});
+          }
+        } catch (e) {
+          setState({msg: t('login_fail'), loading:false});
+        }
+      }
+    });
+    form.append(
+      $('h2', {text:isReg?t('register'):t('login'), id:isReg?'reg-title':'login-title'}),
+      $('label', {text:t('email'), attrs:{for:'email'}}),
+      $('input', {id:'email', type:'email', required:true, attrs:{autocomplete:'username', 'aria-required':'true', tabindex:'0'}}),
+      $('label', {text:t('password'), attrs:{for:'password'}}),
+      $('input', {id:'password', type:'password', required:true, attrs:{autocomplete:'current-password', 'aria-required':'true', tabindex:'0'}}),
+      $('button', {type:'submit', text:isReg?t('register'):t('login'), attrs:{tabindex:'0', 'aria-label':isReg?t('register'):t('login')}, disabled:state.loading}),
+      $('button', {type:'button', text:isReg?t('login'):t('register'), attrs:{tabindex:'0'}, onClick:()=>setState({page:isReg?'login':'register', msg:''})})
+    );
+    if(state.msg) form.append($('div',{text:state.msg, style:{color:'red'}, attrs:{role:'alert', tabindex:'0'}}));
+    root.append(form);
+    return;
+  }
+
+  // 导航
+  const nav = $('nav', {attrs:{role:'navigation', 'aria-label':'Main'}, style:{margin:'1em 0'}});
+  nav.append(
+    $('button', {text:t('inbox'), attrs:{tabindex:'0','aria-label':t('inbox')}, onClick:()=>loadInbox()}),
+    $('button', {text:t('sent'), attrs:{tabindex:'0','aria-label':t('sent')}, onClick:()=>loadSent()}),
+    $('button', {text:t('compose'), attrs:{tabindex:'0','aria-label':t('compose')}, onClick:()=>setState({page:'compose',attachFiles:[],attachments:[],msg:''})}),
+    $('button', {text:t('logout'), attrs:{tabindex:'0','aria-label':t('logout')}, onClick:async()=>{
+      if(confirm(t('confirm_logout'))) {
+        await API.post('/user/logout', {});
+        setState({page:'login',user:null,msg:''});
+      }
+    }})
+  );
+  root.append(nav);
+
+  // 内容
+  const main = $('main', {attrs:{role:'main'}});
+  root.append(main);
+
+  // 收件箱/已发送
+  if(state.page==='inbox' || state.page==='sent') {
+    const isInbox = state.page==='inbox';
+    const list = isInbox ? state.inbox : state.sent;
+    main.append($('h2', {text:isInbox?t('inbox'):t('sent')}));
+    if(state.loading) main.append($('div', {text:t('loading'), attrs:{role:'status'}}));
+    else if(!list.length) main.append($('div', {text:t('no_mail'), attrs:{role:'status'}}));
+    else {
+      const table = $('table', {attrs:{tabindex:'0', role:'table', 'aria-label':'Mail List'}, style:{width:'100%',marginTop:'1em'}});
+      const thead = $('tr');
+      thead.append(
+        $('th', {text: isInbox?t('from'):t('to')}),
+        $('th', {text:t('subject')}),
+        $('th', {text:'时间'})
+      );
+      table.append(thead);
+      for(const mail of list) {
+        const tr = $('tr', {attrs:{tabindex:'0','aria-label':mail.subject||''}, onClick:()=>loadMail(mail.id, isInbox?'inbox':'sent')});
+        tr.append(
+          $('td', {text: isInbox?mail.mail_from:mail.mail_to}),
+          $('td', {text: mail.subject}),
+          $('td', {text: mail.created_at.replace('T',' ').slice(0,19)})
+        );
+        table.append(tr);
+      }
+      main.append(table);
+    }
+    return;
+  }
+
+  // 写信
+  if(state.page==='compose') {
+    const form = $('form', {
+      attrs: {role:'form', 'aria-labelledby':'compose-title'},
+      onsubmit: async e => {
+        e.preventDefault();
+        setState({loading:true,msg:''});
+        let to=qs('#to').value.trim(), subject=qs('#subject').value, body=qs('#body').value, html=qs('#body_html').value;
+        let resp = await API.upload('/user/upload-attachment', state.attachFiles);
+        let attachments = resp.attachments||[];
+        let r = await API.post('/user/send', {to, subject, body, body_html:html, attachments});
+        if(r.success) { setState({msg:t('sent_success'), page:'inbox',attachFiles:[],attachments:[]}); await loadInbox();}
+        else setState({msg:r.error||t('sent_fail'), loading:false});
+      }
+    });
+    form.append(
+      $('h2', {id:'compose-title', text:t('compose')}),
+      $('label', {text:t('to'), attrs:{for:'to'}}),
+      $('input', {id:'to', type:'email', required:true, attrs:{'aria-required':'true',tabindex:'0'}}),
+      $('label', {text:t('subject'), attrs:{for:'subject'}}),
+      $('input', {id:'subject', type:'text', attrs:{tabindex:'0'}}),
+      $('label', {text:t('body'), attrs:{for:'body'}}),
+      $('textarea', {id:'body', rows:6, attrs:{tabindex:'0'}}),
+      $('label', {text:t('html_body'), attrs:{for:'body_html'}}),
+      $('textarea', {id:'body_html', rows:4, attrs:{tabindex:'0'}}),
+      $('label', {text:t('attachments'), attrs:{for:'file'}}),
+      $('input', {
+        id:'file', type:'file', multiple:true, attrs:{tabindex:'0','aria-describedby':'attach-hint'},
+        onchange: e=>{
+          setState({attachFiles:Array.from(e.target.files)});
+        }
+      }),
+      $('div',{id:'attach-hint',text:t('attach_hint'), style:{fontSize:'smaller'}}),
+      $('button', {type:'submit', text:t('send'), attrs:{tabindex:'0'}, disabled:state.loading})
+    );
+    if(state.attachFiles.length) {
+      const ul = $('ul',{});
+      state.attachFiles.forEach(f=>ul.append($('li',{text:`${f.name} (${Math.round(f.size/1024)}KB)`})));
+      form.append(ul);
+    }
+    if(state.msg) form.append($('div',{text:state.msg, style:{color:'red'}, attrs:{role:'alert',tabindex:'0'}}));
+    main.append(form);
+    return;
+  }
+
+  // 邮件详情
+  if(state.page==='detail' && state.currentMail) {
+    const m = state.currentMail;
+    main.append(
+      $('h2',{text:t('details')}),
+      $('button',{text:t('back'),onClick:()=>setState({page:'inbox',currentMail:null}),attrs:{tabindex:'0'}})
+    );
+    const tbl = $('table',{style:{margin:'1em 0'}});
+    tbl.append(
+      $('tr',{}).append($('td',{text:t('from')}),$('td',{text:m.mail_from})),
+      $('tr',{}).append($('td',{text:t('to')}),$('td',{text:m.mail_to})),
+      $('tr',{}).append($('td',{text:t('subject')}),$('td',{text:m.subject})),
+      $('tr',{}).append($('td',{text:'时间'}),$('td',{text:m.created_at.replace('T',' ').slice(0,19)}))
+    );
+    main.append(tbl);
+    main.append(
+      $('div',{html:`<strong>${t('body')}:</strong><pre style="white-space:pre-wrap">${m.body||''}</pre>`}),
+      $('div',{html:`<strong>${t('html_body')}:</strong><div style="background:#f6f6f6;padding:1em;" tabindex="0" aria-label="${t('html_body')}" role="region">${m.body_html||''}</div>`})
+    );
+    // 附件
+    if(m.attachments && m.attachments.length) {
+      main.append($('div',{html:`<strong>${t('attachments')}:</strong>`}));
+      const ul = $('ul',{});
+      m.attachments.forEach(a=>{
+        ul.append($('li',{}).append(
+          $('a',{
+            text:a.filename,
+            attrs:{href:`/api/attachment?id=${m.id}&filename=${encodeURIComponent(a.filename)}`,target:'_blank', download:a.filename, tabindex:'0', 'aria-label':t('download')},
+          })
+        ));
+      });
+      main.append(ul);
+    }
+    main.append(
+      $('button',{text:t('reply'),onClick:()=>setState({
+        page:'compose',
+        msg:'',
+        attachFiles:[],
+        attachments:[],
+        // 自动带出收件人和主题
+        composeTo:m.mail_from,
+        composeSubject:(m.subject?.startsWith('Re:')?m.subject:`Re: ${m.subject}`)
+      }),attrs:{tabindex:'0'}})
+    );
+    return;
+  }
+}
+
+// ========== 业务加载函数 ==========
+async function checkAuth() {
+  let d = await API.get('/user/check');
+  if(d.loggedIn) { setState({user:true,page:'inbox'}); await loadInbox();}
+  else setState({user:null,page:'login'});
+}
+async function loadInbox() {
+  setState({loading:true, page:'inbox',msg:''});
+  let d = await API.get('/user/inbox');
+  setState({inbox:d.mails||[],loading:false});
+}
+async function loadSent() {
+  setState({loading:true, page:'sent',msg:''});
+  let d = await API.get('/user/sent');
+  setState({sent:d.mails||[],loading:false});
+}
+async function loadMail(id, type) {
+  setState({loading:true, page:'detail',currentMail:null});
+  let d = await API.get(type==='inbox'?(`/user/mail?id=${id}`):(`/user/sentmail?id=${id}`));
+  let m = d.mail || null;
+  // 附件字段可能为undefined
+  if(m && m.attachments && typeof m.attachments==='string') m.attachments = JSON.parse(m.attachments);
+  setState({currentMail:m, loading:false});
+}
+
+// ========== 页面加载 ==========
+window.addEventListener('DOMContentLoaded', ()=>{
+  render();
+  checkAuth();
+});
